@@ -30,6 +30,11 @@ export default function SalesPage() {
     // Modal State
     const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+    // Capture Modal (Price 0 / Weighable)
+    const [showCaptureModal, setShowCaptureModal] = useState(false);
+    const [selectedCaptureProduct, setSelectedCaptureProduct] = useState<Product | null>(null);
+    const [captureValue, setCaptureValue] = useState('');
+
     // Split Payment State
     const [payments, setPayments] = useState<PartialPayment[]>([]);
     const [currentAmountInput, setCurrentAmountInput] = useState('');
@@ -59,7 +64,48 @@ export default function SalesPage() {
         }
     };
 
+    const resetCapture = () => {
+        setShowCaptureModal(false);
+        setSelectedCaptureProduct(null);
+        setCaptureValue('');
+    };
+
+    const confirmCapture = () => {
+        if (!selectedCaptureProduct || !captureValue) return;
+
+        const val = parseFloat(captureValue);
+        let finalProduct = { ...selectedCaptureProduct };
+        let finalQty = 1;
+
+        if (selectedCaptureProduct.price === 0) {
+            finalProduct.price = val;
+        } else if (selectedCaptureProduct.is_weighable) {
+            finalQty = val / 1000;
+        }
+
+        setCart((prev) => {
+            const existing = prev.find((item) => item.id === finalProduct.id && item.price === finalProduct.price);
+            if (existing) {
+                return prev.map((item) =>
+                    item.id === finalProduct.id && item.price === finalProduct.price
+                        ? { ...item, quantity: item.quantity + finalQty }
+                        : item
+                );
+            }
+            return [...prev, { ...finalProduct, quantity: finalQty }];
+        });
+
+        resetCapture();
+    };
+
     const addToCart = (product: Product) => {
+        if (product.price === 0 || product.is_weighable) {
+            setSelectedCaptureProduct(product);
+            setCaptureValue('');
+            setShowCaptureModal(true);
+            return;
+        }
+
         setCart((prev) => {
             const existing = prev.find((item) => item.id === product.id);
             if (existing) {
@@ -73,8 +119,8 @@ export default function SalesPage() {
         });
     };
 
-    const removeFromCart = (id: number) => {
-        setCart((prev) => prev.filter((item) => item.id !== id));
+    const removeFromCart = (index: number) => {
+        setCart((prev) => prev.filter((_, i) => i !== index));
     };
 
     const calculateTotal = () => {
@@ -92,7 +138,7 @@ export default function SalesPage() {
     const initiateCheckout = () => {
         if (cart.length === 0) return;
         setPayments([]);
-        setCurrentAmountInput(calculateTotal().toString()); // Suggest full amount initially
+        setCurrentAmountInput(calculateTotal().toString());
         setSelectedCustomer(null);
         setShowPaymentModal(true);
         setShowCustomerSelection(false);
@@ -102,24 +148,19 @@ export default function SalesPage() {
         const amountToAdd = parseFloat(currentAmountInput);
         if (!amountToAdd || amountToAdd <= 0) return;
 
-        if (amountToAdd > calculateRemaining() + 0.1) { // Small tolerance
+        if (amountToAdd > calculateRemaining() + 0.1) {
             alert(`No puedes pagar más del total restante ($${calculateRemaining()})`);
             return;
         }
 
         if (method === 'CREDIT_CUSTOMER' && !selectedCustomer) {
-            // If trying to pay with Credit but no customer selected, force selection
             setShowCustomerSelection(true);
             return;
         }
 
         setPayments([...payments, { method, amount: amountToAdd }]);
-
-        // Auto-calculate remaining for next input
         const newRemaining = calculateRemaining() - amountToAdd;
         setCurrentAmountInput(Math.max(0, newRemaining).toString());
-
-        // If satisfied, we don't close, user must click Confirm
     };
 
     const removePayment = (index: number) => {
@@ -131,13 +172,12 @@ export default function SalesPage() {
     const finalizeSale = async () => {
         setProcessing(true);
         try {
-            if (Math.abs(calculateRemaining()) > 1) { // 1 peso tolerance
+            if (Math.abs(calculateRemaining()) > 1) {
                 alert('El total pagado no coincide con el total de la venta.');
                 setProcessing(false);
                 return;
             }
 
-            // 1. Transaction
             const totalAmount = calculateTotal();
             const { data: transaction, error: transError } = await supabase
                 .from('transactions')
@@ -151,7 +191,6 @@ export default function SalesPage() {
                 .single();
             if (transError) throw transError;
 
-            // 2. Items
             const itemsToInsert = cart.map(item => ({
                 transaction_id: transaction.id,
                 product_id: item.id,
@@ -163,7 +202,6 @@ export default function SalesPage() {
             const { error: itemsError } = await supabase.from('transaction_items').insert(itemsToInsert);
             if (itemsError) throw itemsError;
 
-            // 3. Payments (Batch Insert)
             const paymentsToInsert = payments.map(p => ({
                 transaction_id: transaction.id,
                 amount: p.amount,
@@ -172,19 +210,11 @@ export default function SalesPage() {
             const { error: paymentError } = await supabase.from('payments').insert(paymentsToInsert);
             if (paymentError) throw paymentError;
 
-            // 4. Update Customer Balance (If any Credit payment exists)
             const creditPayment = payments.find(p => p.method === 'CREDIT_CUSTOMER');
             if (creditPayment && selectedCustomer) {
-                // Sum ALL credit payments (unlikely to have 2, but robust)
                 const totalCredit = payments
                     .filter(p => p.method === 'CREDIT_CUSTOMER')
                     .reduce((sum, p) => sum + p.amount, 0);
-
-                const { error: balanceError } = await supabase
-                    .rpc('increment_balance', { amount_to_add: totalCredit, person_id: selectedCustomer.id });
-                // Note: using RPC is better for concurrency, but for MVP simple update is OK. 
-                // Let's stick to update for now to avoid creating RPC if not strictly needed yet, OR implement RPC next.
-                // Wait, I don't have RPC. I will do read-update.
 
                 const { data: currentPerson } = await supabase.from('people').select('balance').eq('id', selectedCustomer.id).single();
                 if (currentPerson) {
@@ -192,13 +222,9 @@ export default function SalesPage() {
                 }
             }
 
-            // Update Stock (Optional for this step but good practice)
-            // For now, skip to keep it simple as per KISS
-
             setCart([]);
             setShowPaymentModal(false);
             alert('¡Venta registrada con éxito!');
-
         } catch (error: any) {
             console.error('Checkout error:', error);
             alert('Error: ' + error.message);
@@ -213,7 +239,6 @@ export default function SalesPage() {
 
     return (
         <div className="flex h-screen flex-col md:flex-row bg-gray-100 relative">
-            {/* Product Grid (Left) */}
             <div className="flex-1 flex flex-col p-4 overflow-hidden">
                 <header className="flex items-center justify-between mb-4">
                     <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
@@ -236,28 +261,28 @@ export default function SalesPage() {
                                     {product.name.charAt(0)}
                                 </div>
                                 <span className="font-semibold text-gray-800 text-center text-sm">{product.name}</span>
-                                <span className="text-xs text-gray-500">${product.price}</span>
+                                <span className="text-xs text-gray-500">{product.price === 0 ? 'Precio Manual' : `$${product.price}`}</span>
+                                {product.is_weighable && <span className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded font-bold uppercase mt-1">Por Peso</span>}
                             </button>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Cart (Right) */}
             <div className="w-full md:w-96 bg-white shadow-2xl z-10 flex flex-col h-[40vh] md:h-screen border-t md:border-l border-gray-200">
                 <div className="p-4 bg-gray-50 border-b border-gray-200">
                     <h2 className="text-lg font-bold text-gray-700">Ticket Actual</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {cart.map((item) => (
-                        <div key={item.id} className="flex justify-between items-center text-sm">
+                    {cart.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm">
                             <div>
                                 <div className="font-medium text-gray-800">{item.name}</div>
                                 <div className="text-xs text-gray-500">{item.quantity} x ${item.price}</div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="font-semibold">${item.price * item.quantity}</span>
-                                <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600">&times;</button>
+                                <span className="font-semibold">${(item.price * item.quantity).toLocaleString()}</span>
+                                <button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-600">&times;</button>
                             </div>
                         </div>
                     ))}
@@ -273,12 +298,11 @@ export default function SalesPage() {
                 </div>
             </div>
 
-            {/* NEW SPLIT PAYMENT MODAL */}
+            {/* PAYMENT MODAL */}
             {showPaymentModal && (
                 <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     {showCustomerSelection ? (
-                        // SUB-MODAL: CUSTOMER SELECTION
-                        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 animate-in zoom-in duration-200 max-h-[80vh] flex flex-col">
+                        <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 flex flex-col max-h-[80vh]">
                             <h3 className="text-lg font-bold mb-4">Seleccionar Cliente</h3>
                             <input
                                 type="text" placeholder="Buscar..."
@@ -297,8 +321,7 @@ export default function SalesPage() {
                             <button onClick={() => setShowCustomerSelection(false)} className="mt-4 text-center text-gray-500 w-full py-2">Cancelar</button>
                         </div>
                     ) : (
-                        // MAIN PAYMENT MODAL
-                        <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5 duration-200">
+                        <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                             <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                                 <div>
                                     <div className="text-xs text-gray-500 uppercase font-bold tracking-wider">Total a Pagar</div>
@@ -308,8 +331,6 @@ export default function SalesPage() {
                             </div>
 
                             <div className="p-6 flex-1 overflow-y-auto">
-
-                                {/* Selected Customer Display */}
                                 <div className="mb-6 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-100">
                                     <div className="flex items-center gap-3">
                                         <User className="text-blue-500" />
@@ -321,7 +342,6 @@ export default function SalesPage() {
                                     <button onClick={() => setShowCustomerSelection(true)} className="text-sm text-blue-600 hover:underline">Cambiar</button>
                                 </div>
 
-                                {/* Payment List */}
                                 <div className="space-y-2 mb-6">
                                     {payments.length === 0 && <div className="text-center text-gray-400 py-2">Aún no hay pagos agregados</div>}
                                     {payments.map((p, idx) => (
@@ -342,7 +362,6 @@ export default function SalesPage() {
                                     ))}
                                 </div>
 
-                                {/* Amount Entry & Buttons */}
                                 {calculateRemaining() > 0 && (
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                                         <div className="flex justify-between items-center mb-3">
@@ -369,10 +388,9 @@ export default function SalesPage() {
                                 )}
                             </div>
 
-                            {/* Footer Actions */}
                             <div className="p-4 border-t bg-gray-50">
                                 {calculateRemaining() <= 1 ? (
-                                    <button onClick={finalizeSale} disabled={processing} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-xl rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                                    <button onClick={finalizeSale} disabled={processing} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-xl rounded-xl shadow-lg">
                                         {processing ? 'Procesando...' : 'Confirmar Venta'}
                                     </button>
                                 ) : (
@@ -383,6 +401,77 @@ export default function SalesPage() {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* PRODUCT CAPTURE MODAL (Price 0 or Weight) */}
+            {showCaptureModal && selectedCaptureProduct && (
+                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-gray-800">{selectedCaptureProduct.name}</h3>
+                            <button onClick={resetCapture} className="text-gray-400 hover:text-gray-600"><X /></button>
+                        </div>
+
+                        {selectedCaptureProduct.price === 0 ? (
+                            <div className="space-y-4">
+                                <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider">Ingresar Precio</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">$</span>
+                                    <input
+                                        type="number"
+                                        className="w-full pl-10 pr-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none text-3xl font-extrabold text-gray-800"
+                                        value={captureValue}
+                                        onChange={e => setCaptureValue(e.target.value)}
+                                        autoFocus
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-end">
+                                    <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider">Indicar Gramaje</label>
+                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">Precio/kg: ${selectedCaptureProduct.price}</span>
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        className="w-full pr-12 pl-4 py-4 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none text-3xl font-extrabold text-gray-800"
+                                        value={captureValue}
+                                        onChange={e => setCaptureValue(e.target.value)}
+                                        autoFocus
+                                        placeholder="0"
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-400">gr</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[250, 500, 1000].map(val => (
+                                        <button
+                                            key={val}
+                                            onClick={() => setCaptureValue(val.toString())}
+                                            className="py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-600 hover:bg-blue-50 transition-colors"
+                                        >
+                                            {val < 1000 ? `${val}g` : '1kg'}
+                                        </button>
+                                    ))}
+                                </div>
+                                {captureValue && (
+                                    <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold">
+                                        Subtotal: ${((selectedCaptureProduct.price * parseFloat(captureValue)) / 1000).toLocaleString()}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={confirmCapture}
+                            disabled={!captureValue || parseFloat(captureValue) <= 0}
+                            className="w-full mt-6 py-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg disabled:bg-gray-200"
+                        >
+                            Agregar al Carrito
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
