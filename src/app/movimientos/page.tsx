@@ -21,7 +21,14 @@ type Transaction = {
     status: string;
     description?: string;
     related_transaction_id?: string;
-    transaction_items: { product_name: string; quantity: number }[];
+    entity_id?: string; // Added field to fix build error
+    transaction_items: {
+        product_name: string;
+        quantity: number;
+        product_id?: number;
+        unit_price?: number;
+        total_price?: number;
+    }[];
     payments: { method: string; amount: number }[];
     entity?: { name: string };
 };
@@ -106,8 +113,8 @@ export default function MovementsPage() {
                 product_id: item.product_id,
                 product_name: `(Anulado) ${item.product_name}`,
                 quantity: -item.quantity, // Negative quantity
-                unit_price: item.unit_price,
-                total_price: -item.total_price
+                unit_price: item.unit_price || 0,
+                total_price: -(item.total_price || 0)
             }));
 
             if (reversalItems.length > 0) {
