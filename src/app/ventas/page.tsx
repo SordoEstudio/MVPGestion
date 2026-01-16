@@ -111,7 +111,7 @@ export default function SalesPage() {
         if (product.price === 0 || product.is_weighable) {
             setSelectedCaptureProduct(product);
             setCaptureValue('');
-            setSecondCaptureValue('');
+            setSecondCaptureValue(product.is_weighable && product.price === 0 ? '1000' : ''); // Default 1000g if dual
             setShowCaptureModal(true);
             return;
         }
@@ -441,7 +441,7 @@ export default function SalesPage() {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gramaje</label>
-                                    <div className="relative">
+                                    <div className="relative mb-3">
                                         <input
                                             type="number"
                                             className="w-full pr-12 pl-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none text-2xl font-bold text-gray-800"
@@ -450,6 +450,17 @@ export default function SalesPage() {
                                             placeholder="0"
                                         />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-400">gr</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[250, 500, 1000].map(val => (
+                                            <button
+                                                key={val}
+                                                onClick={() => setSecondCaptureValue(val.toString())}
+                                                className="py-2 bg-gray-50 border border-gray-100 rounded-lg font-bold text-gray-500 hover:bg-blue-50 text-xs transition-colors"
+                                            >
+                                                {val < 1000 ? `${val}g` : '1kg'}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                                 {captureValue && secondCaptureValue && (
