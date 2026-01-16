@@ -34,6 +34,7 @@ export default function SalesPage() {
     const [showCaptureModal, setShowCaptureModal] = useState(false);
     const [selectedCaptureProduct, setSelectedCaptureProduct] = useState<Product | null>(null);
     const [captureValue, setCaptureValue] = useState('');
+    const [secondCaptureValue, setSecondCaptureValue] = useState(''); // For dual case
 
     // Split Payment State
     const [payments, setPayments] = useState<PartialPayment[]>([]);
@@ -68,19 +69,27 @@ export default function SalesPage() {
         setShowCaptureModal(false);
         setSelectedCaptureProduct(null);
         setCaptureValue('');
+        setSecondCaptureValue('');
     };
 
     const confirmCapture = () => {
         if (!selectedCaptureProduct || !captureValue) return;
 
-        const val = parseFloat(captureValue);
+        const val1 = parseFloat(captureValue);
+        const val2 = parseFloat(secondCaptureValue);
+
         let finalProduct = { ...selectedCaptureProduct };
         let finalQty = 1;
 
-        if (selectedCaptureProduct.price === 0) {
-            finalProduct.price = val;
+        if (selectedCaptureProduct.price === 0 && selectedCaptureProduct.is_weighable) {
+            // val1 is Price/kg, val2 is Weight
+            if (!secondCaptureValue) return; // Prevent partially filled dual forms
+            finalProduct.price = val1;
+            finalQty = val2 / 1000;
+        } else if (selectedCaptureProduct.price === 0) {
+            finalProduct.price = val1;
         } else if (selectedCaptureProduct.is_weighable) {
-            finalQty = val / 1000;
+            finalQty = val1 / 1000;
         }
 
         setCart((prev) => {
@@ -102,6 +111,7 @@ export default function SalesPage() {
         if (product.price === 0 || product.is_weighable) {
             setSelectedCaptureProduct(product);
             setCaptureValue('');
+            setSecondCaptureValue('');
             setShowCaptureModal(true);
             return;
         }
@@ -413,7 +423,42 @@ export default function SalesPage() {
                             <button onClick={resetCapture} className="text-gray-400 hover:text-gray-600"><X /></button>
                         </div>
 
-                        {selectedCaptureProduct.price === 0 ? (
+                        {selectedCaptureProduct.price === 0 && selectedCaptureProduct.is_weighable ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Precio por KG</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-400">$</span>
+                                        <input
+                                            type="number"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none text-2xl font-bold text-gray-800"
+                                            value={captureValue}
+                                            onChange={e => setCaptureValue(e.target.value)}
+                                            autoFocus
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Gramaje</label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            className="w-full pr-12 pl-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-500 outline-none text-2xl font-bold text-gray-800"
+                                            value={secondCaptureValue}
+                                            onChange={e => setSecondCaptureValue(e.target.value)}
+                                            placeholder="0"
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-400">gr</span>
+                                    </div>
+                                </div>
+                                {captureValue && secondCaptureValue && (
+                                    <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold">
+                                        Subtotal: ${((parseFloat(captureValue) * parseFloat(secondCaptureValue)) / 1000).toLocaleString()}
+                                    </div>
+                                )}
+                            </div>
+                        ) : selectedCaptureProduct.price === 0 ? (
                             <div className="space-y-4">
                                 <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider">Ingresar Precio</label>
                                 <div className="relative">
@@ -466,7 +511,10 @@ export default function SalesPage() {
 
                         <button
                             onClick={confirmCapture}
-                            disabled={!captureValue || parseFloat(captureValue) <= 0}
+                            disabled={
+                                !captureValue || parseFloat(captureValue) <= 0 ||
+                                (selectedCaptureProduct.price === 0 && selectedCaptureProduct.is_weighable && (!secondCaptureValue || parseFloat(secondCaptureValue) <= 0))
+                            }
                             className="w-full mt-6 py-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg disabled:bg-gray-200"
                         >
                             Agregar al Carrito
