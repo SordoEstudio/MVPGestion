@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Wallet, CreditCard, Search, Plus, Trash, User, X } from 'lucide-react';
 import { Person, Product } from '@/lib/types';
+import { toast } from 'react-hot-toast';
 
 type PaymentMethod = 'CASH' | 'TRANSFER' | 'CREDIT_PROVIDER';
 
@@ -104,6 +105,7 @@ export default function ExpensesPage() {
     };
 
     const removeItem = (id: string) => {
+        if (!confirm('¿Quitar este item?')) return;
         setCart(cart.filter(i => i.id !== id));
     };
 
@@ -131,7 +133,7 @@ export default function ExpensesPage() {
         const amountToAdd = parseFloat(currentAmountInput);
         if (!amountToAdd || amountToAdd <= 0) return;
         if (amountToAdd > calculateRemaining() + 0.1) {
-            alert(`Excede el total restante ($${calculateRemaining()})`);
+            toast.error(`Excede el total restante ($${calculateRemaining()})`);
             return;
         }
         setPayments([...payments, { method, amount: amountToAdd }]);
@@ -139,6 +141,7 @@ export default function ExpensesPage() {
     };
 
     const removePayment = (index: number) => {
+        if (!confirm('¿Quitar este pago?')) return;
         const removed = payments[index].amount;
         setPayments(payments.filter((_, i) => i !== index));
         setCurrentAmountInput((parseFloat(currentAmountInput || '0') + removed).toString());
@@ -148,7 +151,7 @@ export default function ExpensesPage() {
         setProcessing(true);
         try {
             if (Math.abs(calculateRemaining()) > 1) {
-                alert('El total pagado debe cubrir el gasto.');
+                toast.error('El total pagado debe cubrir el gasto.');
                 setProcessing(false);
                 return;
             }
@@ -231,11 +234,11 @@ export default function ExpensesPage() {
             setCart([]);
             setShowPaymentModal(false);
             setManualDesc(''); setManualAmount(''); setSelectedProviderId('');
-            alert('Gasto registrado exitosamente.');
+            toast.success('Gasto registrado exitosamente.');
 
         } catch (error: any) {
             console.error('Error:', error);
-            alert('Error: ' + error.message);
+            toast.error('Error: ' + error.message);
         } finally {
             setProcessing(false);
         }

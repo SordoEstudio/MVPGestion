@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/lib/types';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const COLORS = [
     { name: 'Amarillo', value: 'bg-amber-200 text-amber-900' },
@@ -56,14 +57,15 @@ export default function CategoriesPage() {
             fetchCategories();
             resetForm();
         } catch (error: any) {
-            alert('Error: ' + error.message);
+            toast.error('Error: ' + error.message);
         }
     };
 
     const handleDelete = async (id: number) => {
         if (!confirm('Eliminar categoría? Los productos quedarán sin categoría.')) return;
         const { error } = await supabase.from('categories').delete().eq('id', id);
-        if (!error) fetchCategories();
+        if (error) toast.error('Error al eliminar: ' + error.message);
+        else fetchCategories();
     };
 
     const startEdit = (cat: Category) => {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ArrowUpCircle, ArrowDownCircle, Wallet, CreditCard, DollarSign, RefreshCw, Plus, X, Save } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface BalanceSummary {
     cashIn: number;
@@ -78,7 +79,7 @@ export default function CashPage() {
 
         } catch (error) {
             console.error('Error fetching balance:', error);
-            alert('Error al calcular caja');
+            toast.error('Error al calcular caja');
         } finally {
             setLoading(false);
         }
@@ -125,9 +126,9 @@ export default function CashPage() {
             fetchBalance();
             setShowModal(false);
             setAmount(''); setDescription(''); setMovType('INCOME');
-
+            toast.success('Movimiento registrado');
         } catch (error: any) {
-            alert('Error: ' + error.message);
+            toast.error('Error: ' + error.message);
         }
     };
 

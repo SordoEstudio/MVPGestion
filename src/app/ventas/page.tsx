@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Product, Person } from '@/lib/types';
 import { useRouter } from 'next/navigation';
-import { Wallet, CreditCard, User, X, Search, Plus, Trash } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { Wallet, CreditCard, User, X, Search, Plus, Trash, Grid, List, TrendingDown, Receipt, ArrowRight } from 'lucide-react';
 
 interface CartItem extends Product {
     quantity: number;
@@ -41,9 +42,13 @@ export default function SalesPage() {
     const [currentAmountInput, setCurrentAmountInput] = useState('');
 
     // Customer Selection State
+    const [showCustomerSelection, setShowCustomerSelection] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<Person | null>(null);
-    const [showCustomerSelection, setShowCustomerSelection] = useState(false);
+    const [viewMode, setViewMode] = useState<'CARDS' | 'LIST'>('CARDS');
+    const [productSearch, setProductSearch] = useState('');
+    const [showNewPersonModal, setShowNewPersonModal] = useState(false);
+    const [newPersonName, setNewPersonName] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -130,6 +135,7 @@ export default function SalesPage() {
     };
 
     const removeFromCart = (index: number) => {
+        if (!confirm('¿Seguro que quieres quitar este producto?')) return;
         setCart((prev) => prev.filter((_, i) => i !== index));
     };
 
@@ -159,7 +165,7 @@ export default function SalesPage() {
         if (!amountToAdd || amountToAdd <= 0) return;
 
         if (amountToAdd > calculateRemaining() + 0.1) {
-            alert(`No puedes pagar más del total restante ($${calculateRemaining()})`);
+            toast.error(`No puedes pagar más del total restante ($${calculateRemaining()})`);
             return;
         }
 
@@ -174,6 +180,7 @@ export default function SalesPage() {
     };
 
     const removePayment = (index: number) => {
+        if (!confirm('¿Quitar este pago?')) return;
         const removedAmount = payments[index].amount;
         setPayments(payments.filter((_, i) => i !== index));
         setCurrentAmountInput((parseFloat(currentAmountInput || '0') + removedAmount).toString());
@@ -183,7 +190,7 @@ export default function SalesPage() {
         setProcessing(true);
         try {
             if (Math.abs(calculateRemaining()) > 1) {
-                alert('El total pagado no coincide con el total de la venta.');
+                toast.error('El total pagado no coincide con el total de la venta.');
                 setProcessing(false);
                 return;
             }
@@ -234,10 +241,10 @@ export default function SalesPage() {
 
             setCart([]);
             setShowPaymentModal(false);
-            alert('¡Venta registrada con éxito!');
+            toast.success('¡Venta registrada con éxito!');
         } catch (error: any) {
             console.error('Checkout error:', error);
-            alert('Error: ' + error.message);
+            toast.error('Error: ' + error.message);
         } finally {
             setProcessing(false);
         }
@@ -247,32 +254,105 @@ export default function SalesPage() {
         c.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const filteredProducts = products.filter(p =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase())
+    );
+
+    const handleCreatePerson = async () => {
+        if (!newPersonName) return;
+        try {
+            const { data, error } = await supabase
+                .from('people')
+                .insert({ name: newPersonName, type: 'CLIENT', balance: 0 })
+                .select()
+                .single();
+            if (error) throw error;
+            setCustomers([data, ...customers]);
+            setSelectedCustomer(data);
+            setShowNewPersonModal(false);
+            setNewPersonName('');
+            setShowCustomerSelection(false);
+        } catch (error: any) {
+            toast.error('Error al crear persona: ' + error.message);
+        }
+    };
+
     return (
         <div className="flex h-screen flex-col md:flex-row bg-gray-100 relative">
             <div className="flex-1 flex flex-col p-4 overflow-hidden">
-                <header className="flex items-center justify-between mb-4">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
-                        &larr; Volver
-                    </Link>
-                    <h1 className="text-2xl font-bold text-gray-800">Nueva Venta</h1>
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">VENTAS</h1>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Operativa Diaria</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link href="/compras" className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all">
+                            <TrendingDown className="w-4 h-4" /> Nuevo Gasto
+                        </Link>
+
+                    </div>
                 </header>
 
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Buscar producto por nombre o código..."
+                            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-transparent focus:border-blue-500 rounded-2xl shadow-sm outline-none font-medium transition-all"
+                            value={productSearch}
+                            onChange={e => setProductSearch(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && filteredProducts.length === 1) {
+                                    addToCart(filteredProducts[0]);
+                                    setProductSearch('');
+                                }
+                            }}
+                        />
+                    </div>
+                    <div className="flex bg-white p-1 rounded-2xl shadow-sm border h-fit">
+                        <button
+                            onClick={() => setViewMode('CARDS')}
+                            className={`p-3 rounded-xl transition-all ${viewMode === 'CARDS' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <Grid className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('LIST')}
+                            className={`p-3 rounded-xl transition-all ${viewMode === 'LIST' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <List className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
                 {loading ? (
-                    <div className="flex-1 flex items-center justify-center">Loading...</div>
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+                    </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
-                        {products.map((product) => (
+                    <div className={`flex-1 overflow-y-auto p-1 ${viewMode === 'CARDS' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4' : 'flex flex-col gap-2'}`}>
+                        {filteredProducts.map((product) => (
                             <button
                                 key={product.id}
                                 onClick={() => addToCart(product)}
-                                className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-blue-50 transition-all border border-gray-100 active:scale-95"
+                                className={`flex items-center bg-white rounded-2xl shadow-sm hover:shadow-md hover:bg-blue-50 transition-all border border-gray-100 active:scale-95 text-left group
+                                    ${viewMode === 'CARDS' ? 'flex-col justify-center p-6 text-center' : 'p-4 gap-4'}`}
                             >
-                                <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mb-2 text-blue-600 font-bold text-lg">
+                                <div className={`flex-shrink-0 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 font-bold group-hover:bg-blue-600 group-hover:text-white transition-colors
+                                    ${viewMode === 'CARDS' ? 'h-12 w-12 mb-3 text-xl' : 'h-10 w-10 text-lg'}`}>
                                     {product.name.charAt(0)}
                                 </div>
-                                <span className="font-semibold text-gray-800 text-center text-sm">{product.name}</span>
-                                <span className="text-xs text-gray-500">{product.price === 0 ? 'Precio Manual' : `$${product.price}`}</span>
-                                {product.is_weighable && <span className="text-[10px] bg-blue-50 text-blue-600 px-1 rounded font-bold uppercase mt-1">Por Peso</span>}
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="font-bold text-gray-800 truncate">{product.name}</div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-blue-600 font-black text-sm">{product.price === 0 ? 'M' : `$${product.price}`}</span>
+                                        {product.is_weighable && (
+                                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Balanza</span>
+                                        )}
+                                    </div>
+                                </div>
                             </button>
                         ))}
                     </div>
@@ -313,22 +393,48 @@ export default function SalesPage() {
                 <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     {showCustomerSelection ? (
                         <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 flex flex-col max-h-[80vh]">
-                            <h3 className="text-lg font-bold mb-4">Seleccionar Cliente</h3>
-                            <input
-                                type="text" placeholder="Buscar..."
-                                className="w-full p-3 border rounded-xl mb-4"
-                                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                                autoFocus
-                            />
-                            <div className="overflow-y-auto flex-1 space-y-2">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-black text-gray-800">Seleccionar Cliente</h3>
+                                <button onClick={() => setShowNewPersonModal(true)} className="flex items-center gap-1 text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100">
+                                    <Plus className="w-4 h-4" /> Nuevo
+                                </button>
+                            </div>
+                            <div className="relative mb-4">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <input
+                                    type="text" placeholder="Buscar por nombre..."
+                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 focus:border-blue-500 rounded-xl outline-none"
+                                    value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
                                 {filteredCustomers.map(c => (
-                                    <button key={c.id} onClick={() => { setSelectedCustomer(c); setShowCustomerSelection(false); }} className="w-full text-left p-3 hover:bg-gray-50 border rounded-lg flex justify-between">
-                                        <span>{c.name}</span>
-                                        <span className="text-gray-400 text-sm">Debe: ${c.balance?.toLocaleString() || 0}</span>
+                                    <button key={c.id} onClick={() => { setSelectedCustomer(c); setShowCustomerSelection(false); }} className="w-full text-left p-4 hover:bg-blue-50 border rounded-xl flex justify-between group transition-all">
+                                        <span className="font-bold text-gray-700 group-hover:text-blue-700">{c.name}</span>
+                                        <span className="text-gray-400 text-sm font-medium">Debe: ${c.balance?.toLocaleString() || 0}</span>
                                     </button>
                                 ))}
                             </div>
-                            <button onClick={() => setShowCustomerSelection(false)} className="mt-4 text-center text-gray-500 w-full py-2">Cancelar</button>
+                            <button onClick={() => setShowCustomerSelection(false)} className="mt-4 text-center text-gray-400 font-bold text-sm uppercase tracking-widest w-full py-2">Cerrar</button>
+                        </div>
+                    ) : showNewPersonModal ? (
+                        <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 flex flex-col">
+                            <h3 className="text-2xl font-black text-gray-800 mb-2">Nuevo Cliente</h3>
+                            <p className="text-sm text-gray-500 mb-6">Agrégalo rápido para esta venta.</p>
+                            <input
+                                type="text"
+                                placeholder="Nombre completo"
+                                className="w-full p-4 border-2 border-gray-100 focus:border-blue-500 rounded-2xl mb-6 outline-none text-lg font-bold"
+                                value={newPersonName}
+                                onChange={e => setNewPersonName(e.target.value)}
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreatePerson()}
+                            />
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowNewPersonModal(false)} className="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl">Cancelar</button>
+                                <button onClick={handleCreatePerson} className="flex-1 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-200">Guardar</button>
+                            </div>
                         </div>
                     ) : (
                         <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">

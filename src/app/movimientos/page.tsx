@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Search, Filter, Ban, AlertTriangle, Eye, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 /* 
   Schema Reminder:
@@ -202,12 +203,12 @@ export default function MovementsPage() {
                 }
             }
 
-            alert('Movimiento anulado correctamente (Contra-asiento generado).');
+            toast.success('Movimiento anulado correctamente (Contra-asiento generado).');
             setShowCancelModal(false);
             fetchTransactions();
 
         } catch (error: any) {
-            alert('Error al anular: ' + error.message);
+            toast.error('Error al anular: ' + error.message);
             console.error(error);
         } finally {
             setProcessing(false);

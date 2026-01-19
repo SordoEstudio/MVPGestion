@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Product, Category } from '@/lib/types';
 import { Plus, Edit2, Trash2, Save, X, Search, Package } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
@@ -44,7 +45,7 @@ export default function ProductsPage() {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.category_id) {
-            alert('Selecciona una categoría');
+            toast.error('Selecciona una categoría');
             return;
         }
 
@@ -76,14 +77,14 @@ export default function ProductsPage() {
             resetForm();
 
         } catch (error: any) {
-            alert('Error al guardar: ' + error.message);
+            toast.error('Error al guardar: ' + error.message);
         }
     };
 
     const handleDelete = async (id: number) => {
         if (!confirm('¿Seguro que quieres eliminar este producto?')) return;
         const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) alert('Error al eliminar: ' + error.message);
+        if (error) toast.error('Error al eliminar: ' + error.message);
         else fetchData();
     };
 

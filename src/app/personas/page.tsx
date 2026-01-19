@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Person, PersonType } from '@/lib/types';
 import { Plus, Edit2, Trash2, Save, X, Search, DollarSign } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function PeoplePage() {
     const [people, setPeople] = useState<Person[]>([]);
@@ -76,14 +77,14 @@ export default function PeoplePage() {
             resetForm();
 
         } catch (error: any) {
-            alert('Error al guardar: ' + error.message);
+            toast.error('Error al guardar: ' + error.message);
         }
     };
 
     const handleDelete = async (id: number) => {
         if (!confirm('¿Seguro que quieres eliminar a esta persona?')) return;
         const { error } = await supabase.from('people').delete().eq('id', id);
-        if (error) alert('Error al eliminar: ' + error.message);
+        if (error) toast.error('Error al eliminar: ' + error.message);
         else fetchPeople();
     };
 
@@ -159,12 +160,12 @@ export default function PeoplePage() {
             const newBalance = selectedPerson.balance - amount;
             await supabase.from('people').update({ balance: newBalance }).eq('id', selectedPerson.id);
 
-            alert('Deuda actualizada correctamente.');
+            toast.success('Deuda actualizada correctamente.');
             setShowDebtModal(false);
             fetchPeople();
 
         } catch (error: any) {
-            alert('Error: ' + error.message);
+            toast.error('Error: ' + error.message);
         } finally {
             setProcessingDebt(false);
         }
