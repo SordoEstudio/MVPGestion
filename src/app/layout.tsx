@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, User, DollarSign, PieChart, LayoutDashboard, ShoppingCart, Users, Package, ScrollText } from "lucide-react";
+import { LogOut, User, DollarSign, PieChart, LayoutDashboard, ShoppingCart, Users, Package, ScrollText, Tag } from "lucide-react";
 import Link from "next/link";
 import { Toaster } from 'react-hot-toast';
 
@@ -80,7 +80,10 @@ export default function RootLayout({
                       <Package className="w-4 h-4" /> Productos
                     </Link>
                     <Link href="/movimientos" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/movimientos' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      <ScrollText className="w-4 h-4" /> Gastos
+                      <ScrollText className="w-4 h-4" /> Movimientos
+                    </Link>
+                    <Link href="/categorias" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/categorias' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      <Tag className="w-4 h-4" /> Categorías
                     </Link>
                   </>
                 ) : (
