@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Category } from '@/lib/types';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useStore } from '@/contexts/StoreContext';
 
 const COLORS = [
     { name: 'Amarillo', value: 'bg-amber-200 text-amber-900' },
@@ -20,6 +21,7 @@ const COLORS = [
 ];
 
 export default function CategoriesPage() {
+    const { storeId } = useStore();
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -45,7 +47,7 @@ export default function CategoriesPage() {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const payload = { name: formData.name, color: formData.color };
+            const payload = { name: formData.name, color: formData.color, store_id: storeId! };
 
             if (editingId) {
                 const { error } = await supabase.from('categories').update(payload).eq('id', editingId);
@@ -83,12 +85,7 @@ export default function CategoriesPage() {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
             <header className="flex items-center justify-between mb-8 max-w-4xl mx-auto w-full">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
-                        &larr; Volver
-                    </Link>
-                    <h1 className="text-3xl font-bold text-gray-800">Categorías</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-gray-800">Categorías</h1>
                 <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-md transition-all active:scale-95">
                     <Plus className="w-5 h-5" /> Nueva
                 </button>

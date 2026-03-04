@@ -163,17 +163,12 @@ export default function ReportesPage() {
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-gray-500 hover:text-gray-900 font-medium">
-              &larr; Volver
-            </Link>
-            <div>
+          <div>
               <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <FileBarChart className="w-7 h-7 text-blue-600" />
-                Reportes
+                Informes
               </h1>
-              <p className="text-sm text-gray-500">Resumen general de facturación</p>
-            </div>
+              <p className="text-sm text-gray-600">Resumen general de facturación</p>
           </div>
         </header>
 
@@ -284,13 +279,23 @@ export default function ReportesPage() {
           </div>
         )}
 
-        <button
-          onClick={handleExportXls}
-          className="w-full md:w-auto px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
-        >
-          <Download className="w-5 h-5" />
-          Exportar a Excel (.xlsx)
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleExportXls}
+            className="px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+            <Download className="w-5 h-5" />
+            Exportar a Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-8 py-4 bg-gray-800 text-white font-bold rounded-2xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
+          >
+            <FileBarChart className="w-5 h-5" />
+            Imprimir / Guardar PDF
+          </button>
+        </div>
       </div>
     </main>
   );

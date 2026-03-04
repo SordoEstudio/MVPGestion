@@ -1,11 +1,11 @@
 
 'use client';
 
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ArrowUpCircle, ArrowDownCircle, Wallet, CreditCard, DollarSign, RefreshCw, Plus, X, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useStore } from '@/contexts/StoreContext';
 
 interface BalanceSummary {
     cashIn: number;
@@ -18,13 +18,23 @@ interface BalanceSummary {
 type MovementType = 'INCOME' | 'EXPENSE';
 type PaymentMethod = 'CASH' | 'TRANSFER';
 
+interface MovementRow {
+    id: string;
+    amount: number;
+    type: string;
+    created_at: string;
+}
+
 export default function CashPage() {
+    const { storeId } = useStore();
     const [balance, setBalance] = useState<BalanceSummary>({
         cashIn: 0, cashOut: 0,
         transferIn: 0, transferOut: 0,
         creditIn: 0
     });
     const [loading, setLoading] = useState(true);
+    const [detailMovements, setDetailMovements] = useState<MovementRow[]>([]);
+    const [detailMethod, setDetailMethod] = useState<PaymentMethod | null>(null);
 
     // Modal State
     const [showModal, setShowModal] = useState(false);
@@ -95,9 +105,10 @@ export default function CashPage() {
             const { data: trans, error: transError } = await supabase
                 .from('transactions')
                 .insert({
-                    type: movType, // INCOME or EXPENSE
+                    type: movType,
                     total_amount: val,
-                    status: 'COMPLETED'
+                    status: 'COMPLETED',
+                    store_id: storeId!
                 })
                 .select()
                 .single();
@@ -136,15 +147,32 @@ export default function CashPage() {
     const netTransfer = balance.transferIn - balance.transferOut;
     const totalBalance = netCash + netTransfer;
 
+    const openDetail = async (method: PaymentMethod) => {
+        setDetailMethod(method);
+        const { data, error } = await supabase
+            .from('payments')
+            .select('id, amount, created_at, transactions(type, created_at)')
+            .eq('method', method)
+            .order('created_at', { ascending: false })
+            .limit(100);
+        if (error) {
+            toast.error('Error al cargar movimientos');
+            return;
+        }
+        setDetailMovements((data ?? []).map((p: any) => ({
+            id: p.id,
+            amount: parseFloat(p.amount),
+            type: p.transactions?.type ?? '',
+            created_at: p.transactions?.created_at ?? p.created_at
+        })));
+    };
+
+    const typeLabel: Record<string, string> = { SALE: 'Venta', EXPENSE: 'Gasto', INCOME: 'Ingreso', DEBT_COLLECTION: 'Cobro', DEBT_PAYMENT: 'Pago deuda' };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4">
             <header className="w-full flex items-center justify-between mb-8 max-w-6xl mx-auto">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
-                        &larr; Volver
-                    </Link>
-                    <h1 className="text-2xl font-bold text-gray-800">Caja Central</h1>
-                </div>
+                <h1 className="text-2xl font-bold text-gray-800">Caja Central</h1>
                 <div className="flex gap-2">
                     <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-gray-800 text-white rounded-xl flex items-center gap-2 font-bold shadow-md hover:bg-gray-700">
                         <Plus className="w-5 h-5" /> Movimiento
@@ -168,7 +196,7 @@ export default function CashPage() {
                 </div>
 
                 {/* CASH CARD */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <button type="button" onClick={() => openDetail('CASH')} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 text-left hover:shadow-xl transition-shadow cursor-pointer">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-emerald-100 rounded-xl text-emerald-600">
                             <Wallet className="w-8 h-8" />
@@ -195,10 +223,11 @@ export default function CashPage() {
                             <span className="font-semibold text-red-500">-${balance.cashOut.toLocaleString()}</span>
                         </div>
                     </div>
-                </div>
+                    <p className="text-xs text-gray-400 mt-3">Clic para ver detalle</p>
+                </button>
 
                 {/* BANK/TRANSFER CARD */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                <button type="button" onClick={() => openDetail('TRANSFER')} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 text-left hover:shadow-xl transition-shadow cursor-pointer">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-blue-100 rounded-xl text-blue-600">
                             <CreditCard className="w-8 h-8" />
@@ -225,8 +254,38 @@ export default function CashPage() {
                             <span className="font-semibold text-red-500">-${balance.transferOut.toLocaleString()}</span>
                         </div>
                     </div>
-                </div>
+                    <p className="text-xs text-gray-400 mt-3">Clic para ver detalle</p>
+                </button>
             </div>
+
+            {/* DETAIL MODAL */}
+            {detailMethod !== null && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDetailMethod(null)}>
+                    <div className="bg-white w-full max-w-lg max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h3 className="font-bold text-gray-800">
+                                Movimientos – {detailMethod === 'CASH' ? 'Efectivo' : 'Transferencias'}
+                            </h3>
+                            <button onClick={() => setDetailMethod(null)} className="p-2 text-gray-500 hover:text-gray-800"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-4">
+                            {detailMovements.length === 0 ? (
+                                <p className="text-gray-500 text-sm">Sin movimientos</p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {detailMovements.map((m, idx) => (
+                                        <li key={m.id ?? `mov-${idx}`} className="flex justify-between items-center py-2 border-b border-gray-50 text-sm">
+                                            <span className="text-gray-600">{typeLabel[m.type] ?? m.type}</span>
+                                            <span className="font-semibold text-gray-900">${m.amount.toLocaleString()}</span>
+                                            <span className="text-gray-400 text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString('es') : ''}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MANUAL MOVEMENT MODAL */}
             {showModal && (
@@ -248,7 +307,7 @@ export default function CashPage() {
                                 <input
                                     type="number"
                                     required
-                                    className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xl font-bold"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xl font-bold text-gray-900 placeholder-gray-500 bg-white"
                                     value={amount}
                                     onChange={e => setAmount(e.target.value)}
                                     placeholder="0.00"
@@ -260,7 +319,7 @@ export default function CashPage() {
                                 <input
                                     type="text"
                                     required
-                                    className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 placeholder-gray-500 bg-white"
                                     value={description}
                                     onChange={e => setDescription(e.target.value)}
                                     placeholder="Ej: Aporte inicial, Retiro personal..."
@@ -270,7 +329,7 @@ export default function CashPage() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Medio</label>
                                 <select
-                                    className="w-full px-4 py-2 border rounded-xl bg-white"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-900"
                                     value={method}
                                     onChange={e => setMethod(e.target.value as PaymentMethod)}
                                 >

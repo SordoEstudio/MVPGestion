@@ -5,10 +5,13 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Person, PersonType } from '@/lib/types';
-import { Plus, Edit2, Trash2, Save, X, Search, DollarSign } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, DollarSign } from 'lucide-react';
+import { SearchInput } from '@/components/SearchInput';
 import { toast } from 'react-hot-toast';
+import { useStore } from '@/contexts/StoreContext';
 
 export default function PeoplePage() {
+    const { storeId } = useStore();
     const [people, setPeople] = useState<Person[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -68,7 +71,8 @@ export default function PeoplePage() {
                         name: formData.name,
                         phone: formData.phone,
                         type: formData.type,
-                        balance: 0
+                        balance: 0,
+                        store_id: storeId!
                     }]);
                 if (error) throw error;
             }
@@ -131,7 +135,8 @@ export default function PeoplePage() {
                     type: transactionType,
                     total_amount: amount,
                     status: 'COMPLETED',
-                    entity_id: selectedPerson.id
+                    entity_id: selectedPerson.id,
+                    store_id: storeId!
                 })
                 .select()
                 .single();
@@ -180,12 +185,7 @@ export default function PeoplePage() {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
             <header className="flex items-center justify-between mb-8 max-w-5xl mx-auto w-full">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
-                        &larr; Volver
-                    </Link>
-                    <h1 className="text-3xl font-bold text-gray-800">Personas</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-gray-800">Personas</h1>
                 <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-md transition-all active:scale-95">
                     <Plus className="w-5 h-5" /> Nuevo
                 </button>
@@ -199,13 +199,10 @@ export default function PeoplePage() {
                     <button onClick={() => setFilterType('PROVIDER')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'PROVIDER' ? 'bg-purple-100 text-purple-800' : 'text-gray-500 hover:bg-gray-50'}`}>Proveedores</button>
                 </div>
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre..."
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                    <SearchInput
                         value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
+                        onChange={setSearchTerm}
+                        placeholder="Buscar por nombre..."
                     />
                 </div>
             </div>

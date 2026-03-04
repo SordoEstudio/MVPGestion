@@ -1,12 +1,25 @@
 
+export interface Unit {
+    id: number;
+    name: string;
+    symbol: string;
+    created_at?: string;
+}
+
 export interface Product {
     id: number;
     name: string;
     price: number;
     stock: number;
     category_id: number;
-    is_weighable: boolean;
+    unit_id: number | null;
     created_at?: string;
+}
+
+/** Producto con relación de categoría (join desde Supabase) */
+export interface ProductWithCategory extends Product {
+    categories?: { name: string; color: string } | null;
+    units?: { name: string; symbol: string } | null;
 }
 
 export interface Category {

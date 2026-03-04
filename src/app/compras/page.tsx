@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Wallet, CreditCard, Search, Plus, Trash, User, X } from 'lucide-react';
+import { Wallet, CreditCard, Plus, Trash, User, X } from 'lucide-react';
+import { SearchInput } from '@/components/SearchInput';
 import { Person, Product } from '@/lib/types';
 import { toast } from 'react-hot-toast';
+import { useStore } from '@/contexts/StoreContext';
 
 type PaymentMethod = 'CASH' | 'TRANSFER' | 'CREDIT_PROVIDER';
 
@@ -35,6 +37,7 @@ const EXPENSE_CATEGORIES = [
 
 export default function ExpensesPage() {
     const router = useRouter();
+    const { storeId } = useStore();
 
     // Data
     const [providers, setProviders] = useState<Person[]>([]);
@@ -86,19 +89,16 @@ export default function ExpensesPage() {
     };
 
     const addProductItem = (product: Product) => {
-        // Check if exists to just add quantity? For expenses, usually we input cost manually as it may change.
-        // Let's ask for Cost when adding a product. 
-        // Simplify: Just add as item with current price default, user can edit?
-        // KISS: Add as item, assume 1 unit, use product price as default cost but allow override? 
-        // Better: Just add to cart with Name and Price.
+        const existing = cart.find(i => i.product_id === product.id && i.description === `Reposición: ${product.name}`);
+        if (existing) {
+            setCart(cart.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + 1 } : i));
+            return;
+        }
         const newItem: ExpenseItem = {
             id: Math.random().toString(36).substr(2, 9),
             product_id: product.id,
             description: `Reposición: ${product.name}`,
-            amount: product.price, // Default to selling price? Probably buying price is different. 
-            // For MVP, since we don't have "Cost Price" in DB yet, we just use 0 or let user type it?
-            // Let's use 0 and force user to edit? Or use Current Price as placeholder.
-            // Let's make a prompt or simple input.
+            amount: product.price,
             quantity: 1
         };
         setCart([...cart, newItem]);
@@ -165,7 +165,8 @@ export default function ExpensesPage() {
                     type: 'EXPENSE',
                     total_amount: totalAmount,
                     status: 'COMPLETED',
-                    entity_id: selectedProviderId || null
+                    entity_id: selectedProviderId || null,
+                    store_id: storeId!
                 })
                 .select()
                 .single();
@@ -251,8 +252,7 @@ export default function ExpensesPage() {
 
             {/* LEFT: INPUT AREA */}
             <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">&larr; Volver</Link>
+                <div className="p-4 border-b border-gray-100">
                     <h1 className="text-xl font-bold text-gray-800">Registrar Compra / Gasto</h1>
                 </div>
 
@@ -295,17 +295,17 @@ export default function ExpensesPage() {
                                 <label className="text-xs font-bold text-gray-500 uppercase">Descripción</label>
                                 <input
                                     type="text"
-                                    className="w-full p-2 border rounded-lg"
-                                    placeholder="Ej: Factura Luz"
+                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 bg-white"
+                                    placeholder="Ej: Factura luz"
                                     value={manualDesc}
                                     onChange={e => setManualDesc(e.target.value)}
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Total ($)</label>
+                                <label className="text-xs font-bold text-gray-600 uppercase">Total ($)</label>
                                 <input
                                     type="number"
-                                    className="w-full p-2 border rounded-lg"
+                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 bg-white"
                                     placeholder="0.00"
                                     value={manualAmount}
                                     onChange={e => setManualAmount(e.target.value)}
@@ -315,12 +315,11 @@ export default function ExpensesPage() {
                         </div>
                     ) : (
                         <div className="space-y-4 animate-in fade-in">
-                            <input
-                                type="text"
-                                placeholder="Buscar producto..."
-                                className="w-full p-2 border rounded-lg"
+                            <SearchInput
                                 value={productSearch}
-                                onChange={e => setProductSearch(e.target.value)}
+                                onChange={setProductSearch}
+                                placeholder="Buscar producto..."
+                                className="[&_input]:py-2 [&_input]:rounded-lg [&_input]:pl-10"
                             />
                             <div className="max-h-60 overflow-y-auto border rounded-lg">
                                 {filteredProducts.map(p => (

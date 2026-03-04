@@ -1,11 +1,11 @@
 
 'use client';
 
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Search, Filter, Ban, AlertTriangle, Eye, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useStore } from '@/contexts/StoreContext';
 
 /* 
   Schema Reminder:
@@ -22,7 +22,8 @@ type Transaction = {
     status: string;
     description?: string;
     related_transaction_id?: string;
-    entity_id?: string; // Added field to fix build error
+    entity_id?: string;
+    store_id?: string;
     transaction_items: {
         product_name: string;
         quantity: number;
@@ -34,10 +35,18 @@ type Transaction = {
     entity?: { name: string };
 };
 
+const PAGE_SIZE = 25;
+
 export default function MovementsPage() {
+    const { storeId } = useStore();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState(0);
     const [filterType, setFilterType] = useState('ALL');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
 
     // Cancel Modal
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -46,11 +55,15 @@ export default function MovementsPage() {
     const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
-        fetchTransactions();
-    }, [filterType]);
+        setPage(0);
+        setTransactions([]);
+        setHasMore(true);
+        fetchTransactions(0, true);
+    }, [filterType, dateFrom, dateTo]);
 
-    const fetchTransactions = async () => {
-        setLoading(true);
+    const fetchTransactions = async (pageOffset: number, replace: boolean) => {
+        if (replace) setLoading(true);
+        else setLoadingMore(true);
         let query = supabase
             .from('transactions')
             .select(`
@@ -60,20 +73,34 @@ export default function MovementsPage() {
                 entity:entity_id (name)
             `)
             .order('created_at', { ascending: false })
-            .limit(50); // Pagination for later
+            .range(pageOffset * PAGE_SIZE, (pageOffset + 1) * PAGE_SIZE - 1);
 
         if (filterType !== 'ALL') {
             query = query.eq('type', filterType);
+        }
+        if (dateFrom) {
+            query = query.gte('created_at', dateFrom + 'T00:00:00');
+        }
+        if (dateTo) {
+            query = query.lte('created_at', dateTo + 'T23:59:59');
         }
 
         const { data, error } = await query;
         if (error) {
             console.error(error);
         } else {
-            // @ts-ignore
-            setTransactions(data || []);
+            const list = (data || []) as Transaction[];
+            setHasMore(list.length === PAGE_SIZE);
+            setTransactions(prev => replace ? list : [...prev, ...list]);
         }
         setLoading(false);
+        setLoadingMore(false);
+    };
+
+    const loadMore = () => {
+        const next = page + 1;
+        setPage(next);
+        fetchTransactions(next, false);
     };
 
     const handleCancelClick = (tx: Transaction) => {
@@ -97,10 +124,11 @@ export default function MovementsPage() {
                 .insert({
                     type: selectedTx.type,
                     total_amount: reversalAmount,
-                    status: 'COMPLETED', // Reversal is a completed action
+                    status: 'COMPLETED',
                     related_transaction_id: selectedTx.id,
                     description: `ANULACIÓN: ${cancelReason}`,
-                    entity_id: selectedTx.entity_id // Keep link to person
+                    entity_id: selectedTx.entity_id,
+                    store_id: selectedTx.store_id
                 })
                 .select()
                 .single();
@@ -205,7 +233,10 @@ export default function MovementsPage() {
 
             toast.success('Movimiento anulado correctamente (Contra-asiento generado).');
             setShowCancelModal(false);
-            fetchTransactions();
+            setPage(0);
+            setTransactions([]);
+            setHasMore(true);
+            fetchTransactions(0, true);
 
         } catch (error: any) {
             toast.error('Error al anular: ' + error.message);
@@ -229,26 +260,48 @@ export default function MovementsPage() {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
             <header className="flex items-center justify-between mb-8 max-w-5xl mx-auto w-full">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="text-gray-500 hover:text-gray-900 font-medium">
-                        &larr; Volver
-                    </Link>
-                    <h1 className="text-3xl font-bold text-gray-800">Historial de Movimientos</h1>
-                </div>
+                <h1 className="text-3xl font-bold text-gray-800">Historial de Movimientos</h1>
             </header>
 
             {/* FILTERS */}
-            <div className="max-w-5xl mx-auto w-full mb-6">
-                <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit">
-                    {['ALL', 'SALE', 'EXPENSE', 'INCOME'].map(f => (
-                        <button
-                            key={f}
-                            onClick={() => setFilterType(f)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${filterType === f ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                        >
-                            {f === 'ALL' ? 'Todos' : f === 'SALE' ? 'Ventas' : f === 'EXPENSE' ? 'Gastos' : 'Caja'}
-                        </button>
-                    ))}
+            <div className="max-w-5xl mx-auto w-full mb-6 space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+                        {['ALL', 'SALE', 'EXPENSE', 'INCOME'].map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setFilterType(f)}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${filterType === f ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                {f === 'ALL' ? 'Todos' : f === 'SALE' ? 'Ventas' : f === 'EXPENSE' ? 'Gastos' : 'Caja'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Desde</label>
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => setDateFrom(e.target.value)}
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white"
+                        />
+                        <label className="text-sm font-medium text-gray-700">Hasta</label>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={e => setDateTo(e.target.value)}
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 bg-white"
+                        />
+                        {(dateFrom || dateTo) && (
+                            <button
+                                type="button"
+                                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                                className="text-sm font-medium text-gray-500 hover:text-gray-800"
+                            >
+                                Limpiar fechas
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -330,6 +383,18 @@ export default function MovementsPage() {
                             </div>
                         );
                     })
+                )}
+                {!loading && transactions.length > 0 && hasMore && (
+                    <div className="flex justify-center pt-4">
+                        <button
+                            type="button"
+                            onClick={loadMore}
+                            disabled={loadingMore}
+                            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition-colors disabled:opacity-50"
+                        >
+                            {loadingMore ? 'Cargando...' : 'Cargar más'}
+                        </button>
+                    </div>
                 )}
             </div>
 

@@ -1,0 +1,11 @@
+- Contador
+
+Usuario: contador@demo.com
+Contraseña: contador123$
+UUID: e0403666-883f-4e84-9e24-d6ecd0126c11
+
+- Comerciante
+
+Usuario: user@demo.com
+Contraseña: user123$
+UUID: aeeb9d5d-fc09-4d68-b173-2b292bc1112a
