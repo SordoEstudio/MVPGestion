@@ -162,4 +162,4 @@ RLS habilitado en todas las tablas; políticas actuales permiten todo (sin restr
 
 ---
 
-*Documento generado a partir del análisis del código y del esquema de base de datos. Refleja el estado actual del sistema.*
+_Documento generado a partir del análisis del código y del esquema de base de datos. Refleja el estado actual del sistema._

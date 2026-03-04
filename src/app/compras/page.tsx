@@ -257,9 +257,9 @@ export default function ExpensesPage() {
                 </div>
 
                 <div className="p-4 bg-gray-50 border-b">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">PROVEEDOR</label>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">PROVEEDOR</label>
                     <div className="relative">
-                        <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                        <User className="absolute left-3 top-3 h-5 w-5 text-gray-600" />
                         <select
                             className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white"
                             value={selectedProviderId}
@@ -275,14 +275,14 @@ export default function ExpensesPage() {
 
                     {/* TABS */}
                     <div className="flex p-1 bg-gray-100 rounded-lg">
-                        <button onClick={() => setItemMode('MANUAL')} className={`flex-1 py-1 rounded-md font-medium text-sm transition-all ${itemMode === 'MANUAL' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Manual / Gasto</button>
-                        <button onClick={() => setItemMode('PRODUCT')} className={`flex-1 py-1 rounded-md font-medium text-sm transition-all ${itemMode === 'PRODUCT' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Reposición Productos</button>
+                        <button onClick={() => setItemMode('MANUAL')} className={`flex-1 py-1 rounded-md font-medium text-sm transition-all ${itemMode === 'MANUAL' ? 'bg-white shadow text-gray-900' : 'text-gray-700'}`}>Manual / Gasto</button>
+                        <button onClick={() => setItemMode('PRODUCT')} className={`flex-1 py-1 rounded-md font-medium text-sm transition-all ${itemMode === 'PRODUCT' ? 'bg-white shadow text-gray-900' : 'text-gray-700'}`}>Reposición Productos</button>
                     </div>
 
                     {itemMode === 'MANUAL' ? (
                         <div className="space-y-4 animate-in fade-in">
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Categoría</label>
+                                <label className="text-xs font-bold text-gray-700 uppercase">Categoría</label>
                                 <select
                                     className="w-full p-2 border rounded-lg bg-white"
                                     value={manualCategory}
@@ -292,10 +292,10 @@ export default function ExpensesPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Descripción</label>
+                                <label className="text-xs font-bold text-gray-700 uppercase">Descripción</label>
                                 <input
                                     type="text"
-                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 bg-white"
+                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-600 bg-white"
                                     placeholder="Ej: Factura luz"
                                     value={manualDesc}
                                     onChange={e => setManualDesc(e.target.value)}
@@ -305,7 +305,7 @@ export default function ExpensesPage() {
                                 <label className="text-xs font-bold text-gray-600 uppercase">Total ($)</label>
                                 <input
                                     type="number"
-                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 bg-white"
+                                    className="w-full p-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-600 bg-white"
                                     placeholder="0.00"
                                     value={manualAmount}
                                     onChange={e => setManualAmount(e.target.value)}
@@ -325,11 +325,11 @@ export default function ExpensesPage() {
                                 {filteredProducts.map(p => (
                                     <button key={p.id} onClick={() => addProductItem(p)} className="w-full text-left p-2 hover:bg-blue-50 border-b flex justify-between items-center group">
                                         <span className="font-medium text-gray-800">{p.name}</span>
-                                        <Plus className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                                        <Plus className="w-4 h-4 text-gray-600 group-hover:text-blue-500" />
                                     </button>
                                 ))}
                             </div>
-                            <p className="text-xs text-gray-500 text-center">Toca un producto para agregarlo. Luego edita su costo.</p>
+                            <p className="text-xs text-gray-700 text-center">Toca un producto para agregarlo. Luego edita su costo.</p>
                         </div>
                     )}
 
@@ -340,20 +340,20 @@ export default function ExpensesPage() {
             <div className="w-full md:w-96 flex flex-col bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                 <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                     <h2 className="font-bold text-gray-700">Detalle</h2>
-                    <span className="text-sm text-gray-400">{cart.length} items</span>
+                    <span className="text-sm text-gray-700">{cart.length} items</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {cart.length === 0 && <div className="text-center text-gray-400 py-10">Lista vacía</div>}
+                    {cart.length === 0 && <div className="text-center text-gray-700 py-10">Lista vacía</div>}
                     {cart.map(item => (
-                        <div key={item.id} className="flex flex-col border-b border-gray-100 pb-2">
+                        <div key={item.id} className="flex flex-col border-b border-gray-200 pb-2">
                             <div className="flex justify-between">
                                 <span className="font-medium text-sm text-gray-800">{item.description}</span>
-                                <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500"><Trash className="w-4 h-4" /></button>
+                                <button onClick={() => removeItem(item.id)} className="text-gray-600 hover:text-red-500"><Trash className="w-4 h-4" /></button>
                             </div>
                             <div className="flex justify-between items-center mt-1">
                                 <div className="flex items-center gap-2">
-                                    <label className="text-xs text-gray-400">Costo:</label>
+                                    <label className="text-xs text-gray-700">Costo:</label>
                                     <input
                                         type="number"
                                         className="w-20 p-1 text-sm border rounded bg-gray-50"
@@ -365,7 +365,7 @@ export default function ExpensesPage() {
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <label className="text-xs text-gray-400">Cant:</label>
+                                    <label className="text-xs text-gray-700">Cant:</label>
                                     <input
                                         type="number"
                                         className="w-12 p-1 text-sm border rounded bg-gray-50"
@@ -398,12 +398,12 @@ export default function ExpensesPage() {
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5">
                         <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-700">Registrar Salida de Dinero</h3>
-                            <button onClick={() => setShowPaymentModal(false)}><X className="text-gray-500" /></button>
+                            <button onClick={() => setShowPaymentModal(false)}><X className="text-gray-700" /></button>
                         </div>
 
                         <div className="p-6 space-y-6">
                             <div className="text-center">
-                                <div className="text-sm text-gray-500">Total a Pagar</div>
+                                <div className="text-sm text-gray-700">Total a Pagar</div>
                                 <div className="text-3xl font-extrabold text-gray-900">${calculateTotal().toLocaleString()}</div>
                             </div>
 
@@ -425,7 +425,7 @@ export default function ExpensesPage() {
                                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-sm font-bold">Agregar Pago:</span>
-                                        <span className="text-xs text-gray-400">Resta: ${calculateRemaining().toLocaleString()}</span>
+                                        <span className="text-xs text-gray-700">Resta: ${calculateRemaining().toLocaleString()}</span>
                                     </div>
                                     <input type="number" className="w-full p-2 border rounded-lg mb-2 font-bold" value={currentAmountInput} onChange={e => setCurrentAmountInput(e.target.value)} />
                                     <div className="grid grid-cols-3 gap-2">

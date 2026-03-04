@@ -26,7 +26,6 @@ const navLink = (active: boolean) =>
   `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-blue-50 text-blue-600' : 'text-gray-800 hover:bg-gray-100'}`;
 
 const SIDEBAR_ITEMS_OWNER: { href: string; label: string; icon: React.ReactNode }[] = [
-  { href: '/dashboard', label: 'Panel', icon: <LayoutDashboard className="w-5 h-5 shrink-0" /> },
   { href: '/ventas', label: 'Ventas', icon: <DollarSign className="w-5 h-5 shrink-0" /> },
   { href: '/compras', label: 'Compras', icon: <ShoppingCart className="w-5 h-5 shrink-0" /> },
   { href: '/caja', label: 'Caja', icon: <PieChart className="w-5 h-5 shrink-0" /> },
@@ -35,6 +34,7 @@ const SIDEBAR_ITEMS_OWNER: { href: string; label: string; icon: React.ReactNode 
   { href: '/movimientos', label: 'Movimientos', icon: <ScrollText className="w-5 h-5 shrink-0" /> },
   { href: '/categorias', label: 'Categorías', icon: <Tag className="w-5 h-5 shrink-0" /> },
   { href: '/reportes', label: 'Informes', icon: <FileBarChart className="w-5 h-5 shrink-0" /> },
+  { href: '/dashboard', label: 'Panel', icon: <LayoutDashboard className="w-5 h-5 shrink-0" /> },
 ];
 
 function LayoutContent({
@@ -201,12 +201,12 @@ function LayoutContent({
                 </div>,
                 document.body
               )}
-              <div className="p-2 border-t border-gray-100 flex items-center gap-2">
-                <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-800 shrink-0">
-                  <User className="w-3.5 h-3.5" />
+              <div className="p-2 border-t border-gray-100 flex items-center justify-end gap-2 shrink-0 min-h-14">
+                <div className="flex items-center gap-2 px-2 py-2 bg-gray-100 rounded-lg text-xs font-bold text-gray-800 shrink-0 h-9 box-border">
+                  <User className="w-3.5 h-3.5 shrink-0" />
                   {sidebarOpen && (role === 'OWNER' ? 'LOCAL' : 'CONTADOR')}
                 </div>
-                <button onClick={logout} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cerrar Sesión">
+                <button onClick={logout} className="flex items-center justify-center shrink-0 h-9 w-9 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Cerrar Sesión">
                   <LogOut className="w-5 h-5" />
                 </button>
               </div>

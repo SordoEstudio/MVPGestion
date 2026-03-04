@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Product, Person, type ProductWithCategory } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Wallet, CreditCard, User, X, Plus, Trash, Grid, List, TrendingDown } from 'lucide-react';
+import { Wallet, CreditCard, User, X, Plus, Trash, Grid, List, TrendingDown, DollarSign } from 'lucide-react';
 import { SearchInput } from '@/components/SearchInput';
 import { ProductCard } from '@/components/ProductCard';
 import { useCart, type CartItem } from '@/contexts/CartContext';
@@ -304,10 +304,15 @@ export default function SalesPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <Link href="/personas?accion=cobrar" className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-xl text-sm font-bold hover:bg-green-200 transition-all">
+                            <DollarSign className="w-4 h-4" /> Cobrar fiado
+                        </Link>
+                        <Link href="/personas?accion=pagar" className="flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-xl text-sm font-bold hover:bg-purple-200 transition-all">
+                            <CreditCard className="w-4 h-4" /> Pagar deuda
+                        </Link>
                         <Link href="/compras" className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all">
                             <TrendingDown className="w-4 h-4" /> Nuevo Gasto
                         </Link>
-
                     </div>
                 </header>
 

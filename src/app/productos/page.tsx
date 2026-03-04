@@ -1,10 +1,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Product, Category, Unit, type ProductWithCategory } from '@/lib/types';
-import { Plus, Edit2, Trash2, Save, X, Package, Grid, List } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Package, Grid, List, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { SearchInput } from '@/components/SearchInput';
 import { ProductCard } from '@/components/ProductCard';
 import { toast } from 'react-hot-toast';
@@ -49,13 +50,15 @@ export default function ProductsPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [storeId]);
 
     const fetchData = async () => {
+        if (!storeId) return;
         setLoading(true);
+        let prodQuery = supabase.from('products').select(`*, categories(name, color), units(name, symbol)`).eq('store_id', storeId).order('name');
         const [prodRes, catRes, unitsRes] = await Promise.all([
-            supabase.from('products').select(`*, categories(name, color), units(name, symbol)`).order('name'),
-            supabase.from('categories').select('*').order('name'),
+            prodQuery,
+            supabase.from('categories').select('*').eq('store_id', storeId).order('name'),
             supabase.from('units').select('*').order('name')
         ]);
 
@@ -135,13 +138,86 @@ export default function ProductsPage() {
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const exportToExcel = () => {
+        const rows = filteredProducts.map(p => {
+            const cat = categories.find(c => c.id === p.category_id);
+            const unit = units.find(u => u.id === p.unit_id);
+            return {
+                Nombre: p.name,
+                Precio: p.price,
+                Categoría: cat?.name ?? '',
+                Unidad: unit?.symbol ?? unit?.name ?? ''
+            };
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+        XLSX.writeFile(wb, `productos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        toast.success('Exportado correctamente');
+    };
+
+    const inputFileRef = useRef<HTMLInputElement>(null);
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !storeId) return;
+        try {
+            const data = await file.arrayBuffer();
+            const wb = XLSX.read(data, { type: 'array' });
+            const first = wb.SheetNames[0];
+            const ws = wb.Sheets[first];
+            const json = XLSX.utils.sheet_to_json<Record<string, string | number>>(ws);
+            let imported = 0;
+            for (const row of json) {
+                const name = String(row['Nombre'] ?? row['nombre'] ?? '').trim();
+                if (!name) continue;
+                const price = Number(row['Precio'] ?? row['precio']) || 0;
+                const catName = String(row['Categoría'] ?? row['categoria'] ?? '').trim();
+                const category = categories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+                const category_id = category?.id ?? categories[0]?.id ?? 0;
+                if (!category_id) continue;
+                const stock = Number(row['Stock'] ?? row['stock']) ?? 0;
+                const unitSymbol = String(row['Unidad'] ?? row['unidad'] ?? '').trim();
+                const unit = units.find(u => u.symbol === unitSymbol || u.name.toLowerCase() === unitSymbol.toLowerCase());
+                const unit_id = unit?.id ?? null;
+                const { error } = await supabase.from('products').insert({
+                    name,
+                    price,
+                    category_id,
+                    stock,
+                    unit_id,
+                    store_id: storeId
+                });
+                if (!error) imported++;
+            }
+            e.target.value = '';
+            if (imported > 0) {
+                fetchData();
+                toast.success(`${imported} producto(s) importados`);
+            } else {
+                toast.error('No se importó ningún producto. Revisá columnas: Nombre, Precio, Categoría, Unidad.');
+            }
+        } catch (err: unknown) {
+            toast.error('Error al importar: ' + (err instanceof Error ? err.message : 'archivo inválido'));
+            e.target.value = '';
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
-            <header className="flex items-center justify-between mb-8 max-w-5xl mx-auto w-full">
+            <header className="flex flex-wrap items-center justify-between gap-4 mb-8 max-w-5xl mx-auto w-full">
                 <h1 className="text-3xl font-bold text-gray-800">Productos</h1>
-                <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-md transition-all active:scale-95">
-                    <Plus className="w-5 h-5" /> Nuevo
-                </button>
+                <div className="flex items-center gap-2">
+                    <input type="file" ref={inputFileRef} accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
+                    <button type="button" onClick={() => inputFileRef.current?.click()} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-all">
+                        <Upload className="w-5 h-5" /> Importar Excel
+                    </button>
+                    <button type="button" onClick={exportToExcel} disabled={filteredProducts.length === 0} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-all disabled:opacity-50">
+                        <Download className="w-5 h-5" /> Exportar Excel
+                    </button>
+                    <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold shadow-md transition-all active:scale-95">
+                        <Plus className="w-5 h-5" /> Nuevo
+                    </button>
+                </div>
             </header>
 
             <div className="max-w-5xl mx-auto w-full mb-6 flex flex-col sm:flex-row gap-4">
@@ -155,14 +231,14 @@ export default function ProductsPage() {
                 <div className="flex bg-white p-0.5 rounded-xl shadow-sm border border-gray-200 h-fit">
                     <button
                         onClick={() => { setViewMode('GRID'); typeof window !== 'undefined' && localStorage.setItem('productos_view', 'GRID'); }}
-                        className={`p-2 rounded-lg transition-all ${viewMode === 'GRID' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`p-2 rounded-lg transition-all ${viewMode === 'GRID' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:text-gray-900'}`}
                         title="Vista grid"
                     >
                         <Grid className="w-5 h-5" />
                     </button>
                     <button
                         onClick={() => { setViewMode('LIST'); typeof window !== 'undefined' && localStorage.setItem('productos_view', 'LIST'); }}
-                        className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                        className={`p-2 rounded-lg transition-all ${viewMode === 'LIST' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:text-gray-900'}`}
                         title="Vista lista"
                     >
                         <List className="w-5 h-5" />
@@ -173,20 +249,19 @@ export default function ProductsPage() {
             {/* GRID / LIST */}
             <div className={`max-w-5xl mx-auto w-full ${viewMode === 'GRID' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'flex flex-col gap-2'}`}>
                 {loading ? (
-                    <div className="col-span-full text-center py-10 text-gray-500">Cargando...</div>
+                    <div className="col-span-full text-center py-10 text-gray-700">Cargando...</div>
                 ) : filteredProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-10 text-gray-500 bg-white rounded-2xl border border-dashed border-gray-300">No hay productos.</div>
+                    <div className="col-span-full text-center py-10 text-gray-800 bg-white rounded-2xl border border-dashed border-gray-300">No hay productos.</div>
                 ) : (
                     filteredProducts.map(product => (
                         <ProductCard
                             key={product.id}
                             product={product as ProductWithCategory}
                             viewMode={viewMode}
-                            showStock
                             actions={
                                 <>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); startEdit(product); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><Edit2 className="w-4 h-4" /></button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); startEdit(product); }} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full"><Edit2 className="w-4 h-4" /></button>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
                                 </>
                             }
                         />
@@ -200,7 +275,7 @@ export default function ProductsPage() {
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800">{editingId ? 'Editar Producto' : 'Nuevo Producto'}</h3>
-                            <button onClick={resetForm}><X className="w-6 h-6 text-gray-500" /></button>
+                            <button onClick={resetForm}><X className="w-6 h-6 text-gray-700" /></button>
                         </div>
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
@@ -215,29 +290,17 @@ export default function ProductsPage() {
                                 {formErrors.name && <p className="text-red-600 text-sm mt-1">{formErrors.name}</p>}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min={0}
-                                        className={`w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 ${formErrors.price ? 'border-red-500' : 'border-gray-200'}`}
-                                        value={formData.price}
-                                        onChange={e => { setFormData({ ...formData, price: parseFloat(e.target.value) || 0 }); setFormErrors(prev => ({ ...prev, price: undefined })); }}
-                                    />
-                                    {formErrors.price && <p className="text-red-600 text-sm mt-1">{formErrors.price}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900"
-                                        value={formData.stock}
-                                        onChange={e => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })}
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio ($)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min={0}
+                                    className={`w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900 ${formErrors.price ? 'border-red-500' : 'border-gray-200'}`}
+                                    value={formData.price}
+                                    onChange={e => { setFormData({ ...formData, price: parseFloat(e.target.value) || 0 }); setFormErrors(prev => ({ ...prev, price: undefined })); }}
+                                />
+                                {formErrors.price && <p className="text-red-600 text-sm mt-1">{formErrors.price}</p>}
                             </div>
 
                             <div>

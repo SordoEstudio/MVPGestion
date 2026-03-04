@@ -148,6 +148,12 @@ export default function CashPage() {
     const totalBalance = netCash + netTransfer;
 
     const openDetail = async (method: PaymentMethod) => {
+        // Si ya está seleccionado el mismo, cerrar lista
+        if (detailMethod === method) {
+            setDetailMethod(null);
+            setDetailMovements([]);
+            return;
+        }
         setDetailMethod(method);
         const { data, error } = await supabase
             .from('payments')
@@ -258,17 +264,19 @@ export default function CashPage() {
                 </button>
             </div>
 
-            {/* DETAIL MODAL */}
+            {/* Lista de movimientos debajo de las cards (misma página) */}
             {detailMethod !== null && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDetailMethod(null)}>
-                    <div className="bg-white w-full max-w-lg max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="max-w-6xl mx-auto w-full mt-8">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800">
                                 Movimientos – {detailMethod === 'CASH' ? 'Efectivo' : 'Transferencias'}
                             </h3>
-                            <button onClick={() => setDetailMethod(null)} className="p-2 text-gray-500 hover:text-gray-800"><X className="w-5 h-5" /></button>
+                            <button type="button" onClick={() => { setDetailMethod(null); setDetailMovements([]); }} className="p-2 text-gray-500 hover:text-gray-800 rounded-lg hover:bg-gray-100">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-                        <div className="overflow-y-auto flex-1 p-4">
+                        <div className="overflow-y-auto max-h-[50vh] p-4">
                             {detailMovements.length === 0 ? (
                                 <p className="text-gray-500 text-sm">Sin movimientos</p>
                             ) : (
@@ -276,7 +284,9 @@ export default function CashPage() {
                                     {detailMovements.map((m, idx) => (
                                         <li key={m.id ?? `mov-${idx}`} className="flex justify-between items-center py-2 border-b border-gray-50 text-sm">
                                             <span className="text-gray-600">{typeLabel[m.type] ?? m.type}</span>
-                                            <span className="font-semibold text-gray-900">${m.amount.toLocaleString()}</span>
+                                            <span className={`font-semibold ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                {m.amount >= 0 ? '+' : ''}${m.amount.toLocaleString()}
+                                            </span>
                                             <span className="text-gray-400 text-xs">{m.created_at ? new Date(m.created_at).toLocaleDateString('es') : ''}</span>
                                         </li>
                                     ))}

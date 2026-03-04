@@ -257,6 +257,12 @@ export default function MovementsPage() {
         }
     };
 
+    // Map: original tx id -> reversal tx (contra-asiento). Para no permitir re-anular y mostrar referencia.
+    const reversalByOriginalId: Record<string, Transaction> = {};
+    transactions.forEach(t => {
+        if (t.related_transaction_id) reversalByOriginalId[t.related_transaction_id] = t;
+    });
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 md:p-8">
             <header className="flex items-center justify-between mb-8 max-w-5xl mx-auto w-full">
@@ -352,6 +358,12 @@ export default function MovementsPage() {
                                                 { // @ts-ignore
                                                     tx.entity ? ` • ${tx.entity.name}` : ''}
                                             </div>
+                                            {tx.related_transaction_id && (
+                                                <div className="text-xs text-amber-700 mt-1">Anulación del movimiento original (id: {tx.related_transaction_id.slice(0, 8)}…)</div>
+                                            )}
+                                            {reversalByOriginalId[tx.id] && (
+                                                <div className="text-xs text-amber-700 mt-1">Anulado por contra-asiento (id: {reversalByOriginalId[tx.id].id.slice(0, 8)}…)</div>
+                                            )}
                                             {tx.description && <div className="text-xs text-gray-500 mt-1 italic">"{tx.description}"</div>}
 
                                             {/* ITEMS PREVIEW */}
@@ -369,8 +381,8 @@ export default function MovementsPage() {
                                             ${Math.abs(tx.total_amount).toLocaleString()}
                                         </div>
 
-                                        {/* Only allow cancellation if Positive amount (Not already cancelled) and not a Reversal itself */}
-                                        {tx.total_amount > 0 && !tx.related_transaction_id && (
+                                        {/* No anular si ya es contra-asiento o si este movimiento ya fue anulado por otro */}
+                                        {tx.total_amount > 0 && !tx.related_transaction_id && !reversalByOriginalId[tx.id] && (
                                             <button
                                                 onClick={() => handleCancelClick(tx)}
                                                 className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"

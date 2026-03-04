@@ -17,7 +17,7 @@ export default function HomePage() {
     if (profile?.role === 'accountant') {
       router.replace('/accountant');
     } else {
-      router.replace('/dashboard');
+      router.replace('/ventas');
     }
   }, [user, profile?.role, loading, router]);
 

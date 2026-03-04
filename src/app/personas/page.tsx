@@ -2,7 +2,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Person, PersonType } from '@/lib/types';
 import { Plus, Edit2, Trash2, Save, X, DollarSign } from 'lucide-react';
@@ -11,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import { useStore } from '@/contexts/StoreContext';
 
 export default function PeoplePage() {
+    const searchParams = useSearchParams();
     const { storeId } = useStore();
     const [people, setPeople] = useState<Person[]>([]);
     const [loading, setLoading] = useState(true);
@@ -35,16 +37,27 @@ export default function PeoplePage() {
     const [debtAmount, setDebtAmount] = useState('');
     const [debtMethod, setDebtMethod] = useState('CASH');
     const [processingDebt, setProcessingDebt] = useState(false);
+    const accionAppliedRef = useRef(false);
 
     useEffect(() => {
         fetchPeople();
-    }, []);
+    }, [storeId]);
+
+    // Solo posicionar en pestaña Clientes o Proveedores si se llega con ?accion=cobrar o ?accion=pagar (sin abrir modal)
+    useEffect(() => {
+        const accion = searchParams.get('accion');
+        if (accionAppliedRef.current || loading || !accion) return;
+        accionAppliedRef.current = true;
+        setFilterType(accion === 'cobrar' ? 'CLIENT' : 'PROVIDER');
+    }, [loading, searchParams]);
 
     const fetchPeople = async () => {
+        if (!storeId) return;
         setLoading(true);
         const { data, error } = await supabase
             .from('people')
             .select('*')
+            .eq('store_id', storeId)
             .order('name');
 
         if (!error && data) setPeople(data);
@@ -194,9 +207,9 @@ export default function PeoplePage() {
             {/* FILTERS */}
             <div className="max-w-5xl mx-auto w-full mb-6 flex flex-col sm:flex-row gap-4">
                 <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-                    <button onClick={() => setFilterType('ALL')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'ALL' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}>Todos</button>
-                    <button onClick={() => setFilterType('CLIENT')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'CLIENT' ? 'bg-blue-100 text-blue-800' : 'text-gray-500 hover:bg-gray-50'}`}>Clientes</button>
-                    <button onClick={() => setFilterType('PROVIDER')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'PROVIDER' ? 'bg-purple-100 text-purple-800' : 'text-gray-500 hover:bg-gray-50'}`}>Proveedores</button>
+                    <button onClick={() => setFilterType('ALL')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'ALL' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}>Todos</button>
+                    <button onClick={() => setFilterType('CLIENT')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'CLIENT' ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-50'}`}>Clientes</button>
+                    <button onClick={() => setFilterType('PROVIDER')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${filterType === 'PROVIDER' ? 'bg-purple-100 text-purple-800' : 'text-gray-700 hover:bg-gray-50'}`}>Proveedores</button>
                 </div>
                 <div className="flex-1 relative">
                     <SearchInput
@@ -210,9 +223,9 @@ export default function PeoplePage() {
             {/* LIST */}
             <div className="max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? (
-                    <div className="col-span-full text-center py-10 text-gray-500">Cargando...</div>
+                    <div className="col-span-full text-center py-10 text-gray-700">Cargando...</div>
                 ) : filteredPeople.length === 0 ? (
-                    <div className="col-span-full text-center py-10 text-gray-500 bg-white rounded-2xl border border-dashed border-gray-300">No hay personas registradas.</div>
+                    <div className="col-span-full text-center py-10 text-gray-800 bg-white rounded-2xl border border-dashed border-gray-300">No hay personas registradas.</div>
                 ) : (
                     filteredPeople.map(person => (
                         <div key={person.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between group">
@@ -223,20 +236,20 @@ export default function PeoplePage() {
                                         <span className={`text-xs font-bold px-2 py-0.5 rounded ${person.type === 'CLIENT' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                             {person.type === 'CLIENT' ? 'CLIENTE' : 'PROVEEDOR'}
                                         </span>
-                                        {person.phone && <span className="text-gray-400 text-sm">📞 {person.phone}</span>}
+                                        {person.phone && <span className="text-gray-600 text-sm">📞 {person.phone}</span>}
                                     </div>
                                 </div>
                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                    <button onClick={() => startEdit(person)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full"><Edit2 className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDelete(person.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
+                                    <button onClick={() => startEdit(person)} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full"><Edit2 className="w-4 h-4" /></button>
+                                    <button onClick={() => handleDelete(person.id)} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-full"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             </div>
 
-                            <div className="mt-4 pt-4 border-t border-gray-50">
+                            <div className="mt-4 pt-4 border-t border-gray-200">
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <div className="text-xs text-gray-400 uppercase font-bold">Saldo Pendiente</div>
-                                        <div className={`font-bold text-xl ${person.balance > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                        <div className="text-xs text-gray-700 uppercase font-bold">Saldo Pendiente</div>
+                                        <div className={`font-bold text-xl ${person.balance > 0 ? 'text-red-500' : 'text-gray-700'}`}>
                                             ${person.balance.toLocaleString()}
                                         </div>
                                     </div>
@@ -262,7 +275,7 @@ export default function PeoplePage() {
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800">{editingId ? 'Editar Persona' : 'Nueva Persona'}</h3>
-                            <button onClick={resetForm}><X className="w-6 h-6 text-gray-500" /></button>
+                            <button onClick={resetForm}><X className="w-6 h-6 text-gray-700" /></button>
                         </div>
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
@@ -326,13 +339,13 @@ export default function PeoplePage() {
                             <h3 className="font-bold text-gray-800">
                                 {selectedPerson.type === 'CLIENT' ? 'Cobrar Deuda' : 'Pagar Deuda'}
                             </h3>
-                            <button onClick={() => setShowDebtModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
+                            <button onClick={() => setShowDebtModal(false)}><X className="w-6 h-6 text-gray-700" /></button>
                         </div>
                         <form onSubmit={handleSettleDebt} className="p-6 space-y-4">
                             <div className="bg-gray-50 p-4 rounded-xl text-center mb-4">
-                                <div className="text-xs text-gray-500 uppercase">Saldo Actual</div>
+                                <div className="text-xs text-gray-700 uppercase">Saldo Actual</div>
                                 <div className="text-3xl font-extrabold text-gray-800">${selectedPerson.balance.toLocaleString()}</div>
-                                <div className="text-sm text-gray-500 mt-1">{selectedPerson.name}</div>
+                                <div className="text-sm text-gray-700 mt-1">{selectedPerson.name}</div>
                             </div>
 
                             <div>
@@ -349,8 +362,8 @@ export default function PeoplePage() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Medio de Pago</label>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button type="button" onClick={() => setDebtMethod('CASH')} className={`py-2 rounded-lg font-bold border-2 ${debtMethod === 'CASH' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-400'}`}>Efectivo</button>
-                                    <button type="button" onClick={() => setDebtMethod('TRANSFER')} className={`py-2 rounded-lg font-bold border-2 ${debtMethod === 'TRANSFER' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400'}`}>Transferencia</button>
+                                    <button type="button" onClick={() => setDebtMethod('CASH')} className={`py-2 rounded-lg font-bold border-2 ${debtMethod === 'CASH' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-700'}`}>Efectivo</button>
+                                    <button type="button" onClick={() => setDebtMethod('TRANSFER')} className={`py-2 rounded-lg font-bold border-2 ${debtMethod === 'TRANSFER' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700'}`}>Transferencia</button>
                                 </div>
                             </div>
 

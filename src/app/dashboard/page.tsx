@@ -24,7 +24,6 @@ type ViewMode = 'RESUMEN' | 'VENTAS' | 'COMPRAS' | 'CAJA' | 'PERSONAS' | 'PRODUC
 interface Debtor { id: number; name: string; balance: number; }
 interface CajaBalance { cashIn: number; cashOut: number; transferIn: number; transferOut: number; }
 interface MovementRow { id: number; amount: number; type: string; created_at: string; }
-interface ProductStat { name: string; stock: number; price: number; total: number; }
 interface TopSold { product_name: string; quantity: number; total: number; }
 interface ByProvider { name: string; total: number; }
 interface LastPurchase { id: string; total_amount: number; created_at: string; providerName?: string; }
@@ -48,9 +47,7 @@ export default function OwnerDashboard({ storeIdOverride }: { storeIdOverride?: 
     const [debtors, setDebtors] = useState<Debtor[]>([]);
     const [cajaBalance, setCajaBalance] = useState<CajaBalance>({ cashIn: 0, cashOut: 0, transferIn: 0, transferOut: 0 });
     const [cajaMovements, setCajaMovements] = useState<MovementRow[]>([]);
-    const [inventoryValue, setInventoryValue] = useState(0);
     const [totalProducts, setTotalProducts] = useState(0);
-    const [lowStockProducts, setLowStockProducts] = useState<ProductStat[]>([]);
     const [topSold, setTopSold] = useState<TopSold[]>([]);
     const [purchaseTotal, setPurchaseTotal] = useState(0);
     const [purchaseCount, setPurchaseCount] = useState(0);
@@ -214,18 +211,8 @@ if (type === 'SALE' || type === 'DEBT_COLLECTION') {
             }
 
             if (viewMode === 'PRODUCTOS') {
-                const { data: products } = await supabase.from('products').select('id, name, stock, price').eq('store_id', storeId);
-                const list = products ?? [];
-                const value = list.reduce((s, p) => s + Number(p.stock ?? 0) * Number(p.price ?? 0), 0);
-                const lowStock = list.filter(p => Number(p.stock ?? 0) < 5).map(p => ({
-                    name: p.name,
-                    stock: Number(p.stock ?? 0),
-                    price: Number(p.price ?? 0),
-                    total: Number(p.stock ?? 0) * Number(p.price ?? 0)
-                }));
-                setInventoryValue(value);
-                setTotalProducts(list.length);
-                setLowStockProducts(lowStock);
+                const { data: products } = await supabase.from('products').select('id').eq('store_id', storeId);
+                setTotalProducts((products ?? []).length);
                 const { data: saleTx } = await supabase.from('transactions').select('id').eq('store_id', storeId).eq('type', 'SALE').gte('created_at', startStr).lte('created_at', endStr);
                 const saleIds = (saleTx ?? []).map((t: { id: string }) => t.id);
                 let saleItems: { product_name?: string; quantity?: number; total_price?: number }[] = [];
@@ -367,7 +354,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 <TrendingUp className="w-7 h-7" />
                             </div>
                         </div>
-                        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest">Ventas Totales</h3>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Ventas Totales</h3>
                         <p className="text-4xl font-black text-gray-900 mt-2">${stats.totalSales.toLocaleString()}</p>
                     </div>
 
@@ -377,7 +364,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 <ShoppingBag className="w-7 h-7" />
                             </div>
                         </div>
-                        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest">Gastos / Compras</h3>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Gastos / Compras</h3>
                         <p className="text-4xl font-black text-gray-900 mt-2">${stats.totalPurchases.toLocaleString()}</p>
                     </div>
 
@@ -387,7 +374,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 <CreditCard className="w-7 h-7" />
                             </div>
                         </div>
-                        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest">Cobros Recibidos</h3>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Cobros Recibidos</h3>
                         <p className="text-4xl font-black text-gray-900 mt-2">${stats.totalCollections.toLocaleString()}</p>
                     </div>
 
@@ -397,7 +384,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 <Users className="w-7 h-7" />
                             </div>
                         </div>
-                        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest">Pendiente de Cobro</h3>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Pendiente de Cobro</h3>
                         <p className="text-4xl font-black text-purple-600 mt-2">${stats.pendingCollect.toLocaleString()}</p>
                     </div>
                 </div>
@@ -447,7 +434,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                         <div>
                                             <div className="flex items-center gap-3 mb-1">
                                                 <DollarSign className="w-6 h-6 text-emerald-600" />
-                                                <span className="text-xs font-bold text-gray-600 uppercase">Efectivo</span>
+                                                <span className="text-xs font-bold text-gray-700 uppercase">Efectivo</span>
                                             </div>
                                             <p className="text-2xl font-black text-gray-900">${stats.cashSales.toLocaleString()} <span className="text-sm font-bold text-emerald-600">{cashPct}%</span></p>
                                             <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mt-1">
@@ -457,7 +444,7 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                         <div>
                                             <div className="flex items-center gap-3 mb-1">
                                                 <CreditCard className="w-6 h-6 text-blue-600" />
-                                                <span className="text-xs font-bold text-gray-600 uppercase">Transferencias</span>
+                                                <span className="text-xs font-bold text-gray-700 uppercase">Transferencias</span>
                                             </div>
                                             <p className="text-2xl font-black text-gray-900">${stats.creditSales.toLocaleString()} <span className="text-sm font-bold text-blue-600">{transferPct}%</span></p>
                                             <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mt-1">
@@ -522,13 +509,13 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                                 {semaphore === 'amber' && <span className="text-amber-600">Atención</span>}
                                                 {semaphore === 'green' && <span className="text-emerald-600">OK</span>}
                                             </div>
-                                            <div className="pt-2 border-t border-gray-100 space-y-1 text-sm">
+                                            <div className="pt-2 border-t border-gray-300 space-y-1 text-sm">
                                                 <div className="flex justify-between">
-                                                    <span className="text-gray-600">Proyección anual</span>
+                                                    <span className="text-gray-700">Proyección anual</span>
                                                     <span className="font-bold">${projection.toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-gray-600">Restante hasta tope</span>
+                                                    <span className="text-gray-700">Restante hasta tope</span>
                                                     <span className="font-bold text-gray-900">${remaining.toLocaleString()}</span>
                                                 </div>
                                             </div>
@@ -546,19 +533,19 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                     <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total ventas</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total ventas</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">${salesTotal.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Cantidad de ventas</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Cantidad de ventas</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">{salesCount}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Efectivo</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Efectivo</p>
                                 <p className="text-2xl font-black text-emerald-600 mt-1">${salesCash.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Transferencias</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Transferencias</p>
                                 <p className="text-2xl font-black text-blue-600 mt-1">${salesTransfer.toLocaleString()}</p>
                             </div>
                         </div>
@@ -568,9 +555,9 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 <Link href="/ventas" className="text-sm font-bold text-blue-600 hover:underline">Ir a Ventas</Link>
                             </div>
                             <div className="space-y-2">
-                                {lastSales.length === 0 ? <p className="text-gray-600 text-sm">Sin ventas en el período</p> : lastSales.map(s => (
-                                    <div key={s.id} className="flex justify-between items-center py-2 border-b border-gray-50 text-sm">
-                                        <span className="text-gray-700">{new Date(s.created_at).toLocaleString()}</span>
+                                {lastSales.length === 0 ? <p className="text-gray-800 text-sm">Sin ventas en el período</p> : lastSales.map(s => (
+                                    <div key={s.id} className="flex justify-between items-center py-2 border-b border-gray-200 text-sm">
+                                        <span className="text-gray-800">{new Date(s.created_at).toLocaleString()}</span>
                                         <span className="font-bold tabular-nums text-gray-900">${s.total_amount.toLocaleString()}</span>
                                     </div>
                                 ))}
@@ -583,19 +570,19 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                     <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Saldo total</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Saldo total</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">${totalBalance.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Efectivo entrado</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Efectivo entrado</p>
                                 <p className="text-2xl font-black text-emerald-600 mt-1">${cajaBalance.cashIn.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Efectivo salido</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Efectivo salido</p>
                                 <p className="text-2xl font-black text-red-600 mt-1">${cajaBalance.cashOut.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Transferencias (entrada − salida)</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Transferencias (entrada − salida)</p>
                                 <p className="text-2xl font-black text-blue-600 mt-1">${netTransfer.toLocaleString()}</p>
                             </div>
                         </div>
@@ -608,15 +595,15 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                 {cajaMovements.slice(0, 10).map(m => {
                                     const isEgress = m.type === 'EXPENSE' || m.type === 'DEBT_PAYMENT';
                                     return (
-                                        <div key={m.id} className="flex justify-between items-center py-2 border-b border-gray-200 text-sm">
-                                            <span className="text-gray-700">{typeLabel[m.type] ?? m.type}</span>
+                                        <div key={m.id} className="flex justify-between items-center py-2 border-b border-gray-300 text-sm">
+                                            <span className="text-gray-800">{typeLabel[m.type] ?? m.type}</span>
                                             <span className={`font-bold tabular-nums ${isEgress ? 'text-red-600' : 'text-emerald-600'}`}>
                                                 {isEgress ? `-$${m.amount.toLocaleString()}` : `$${m.amount.toLocaleString()}`}
                                             </span>
                                         </div>
                                     );
                                 })}
-                                {cajaMovements.length === 0 && <p className="text-gray-600 text-sm">Sin movimientos</p>}
+                                {cajaMovements.length === 0 && <p className="text-gray-800 text-sm">Sin movimientos</p>}
                             </div>
                         </div>
                     </div>
@@ -624,44 +611,23 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
 
                 {viewMode === 'PRODUCTOS' && (
                     <div className="space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Valor inventario</p>
-                                <p className="text-2xl font-black text-gray-900 mt-1">${inventoryValue.toLocaleString()}</p>
-                            </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total productos</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total productos</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">{totalProducts}</p>
                             </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Stock bajo (&lt;5)</p>
-                                <p className="text-2xl font-black text-amber-600 mt-1">{lowStockProducts.length}</p>
-                            </div>
                         </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-black text-gray-800 mb-4">Más vendidos (período)</h3>
-                                <div className="space-y-2">
-                                    {topSold.length === 0 ? <p className="text-gray-600 text-sm">Sin ventas en el período</p> : topSold.map((t, idx) => (
-                                        <div key={idx} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                            <span className="truncate pr-2">{t.product_name}</span>
-                                            <span className="font-bold tabular-nums shrink-0">${t.total.toLocaleString()}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-lg font-black text-gray-800 mb-4">Más vendidos (período)</h3>
+                            <div className="space-y-2">
+                                {topSold.length === 0 ? <p className="text-gray-800 text-sm">Sin ventas en el período</p> : topSold.map((t, idx) => (
+                                    <div key={idx} className="flex justify-between text-sm py-1 border-b border-gray-200">
+                                        <span className="truncate pr-2 text-gray-800">{t.product_name}</span>
+                                        <span className="font-bold tabular-nums shrink-0 text-gray-900">${t.total.toLocaleString()}</span>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="text-lg font-black text-gray-800 mb-4">Productos con stock bajo</h3>
-                                <div className="space-y-2">
-                                    {lowStockProducts.length === 0 ? <p className="text-gray-600 text-sm">Ninguno</p> : lowStockProducts.map((p, i) => (
-                                        <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                            <span className="truncate pr-2">{p.name}</span>
-                                            <span className="font-bold text-amber-600 shrink-0">Stock: {p.stock}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <Link href="/productos" className="inline-block mt-4 text-sm font-bold text-blue-600 hover:underline">Ir a Productos</Link>
-                            </div>
+                            <Link href="/productos" className="inline-block mt-4 text-sm font-bold text-blue-600 hover:underline">Ir a Productos</Link>
                         </div>
                     </div>
                 )}
@@ -670,15 +636,15 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                     <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total compras</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total compras</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">${purchaseTotal.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Cantidad de compras</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Cantidad de compras</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">{purchaseCount}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Promedio por compra</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Promedio por compra</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">${purchaseCount ? (purchaseTotal / purchaseCount).toLocaleString() : '0'}</p>
                             </div>
                         </div>
@@ -688,9 +654,9 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                                     <h3 className="text-lg font-black text-gray-800 mb-4">Por proveedor</h3>
                                     <div className="space-y-2">
                                         {byProvider.map((b, i) => (
-                                            <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                                <span className="truncate pr-2">{b.name}</span>
-                                                <span className="font-bold tabular-nums shrink-0">${b.total.toLocaleString()}</span>
+                                            <div key={i} className="flex justify-between text-sm py-1 border-b border-gray-200">
+                                                <span className="truncate pr-2 text-gray-800">{b.name}</span>
+                                                <span className="font-bold tabular-nums shrink-0 text-gray-900">${b.total.toLocaleString()}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -699,13 +665,13 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-black text-gray-800 mb-4">Últimas compras</h3>
                                 <div className="space-y-2">
-                                    {lastPurchases.length === 0 ? <p className="text-gray-600 text-sm">Sin compras</p> : lastPurchases.map(p => (
-                                        <div key={p.id} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                                    {lastPurchases.length === 0 ? <p className="text-gray-800 text-sm">Sin compras</p> : lastPurchases.map(p => (
+                                        <div key={p.id} className="flex justify-between text-sm py-1 border-b border-gray-200">
                                             <div className="min-w-0">
-                                                <span className="text-gray-600 block truncate">{p.providerName ?? 'Sin proveedor'}</span>
-                                                <span className="text-xs text-gray-600">{new Date(p.created_at).toLocaleDateString()}</span>
+                                                <span className="text-gray-900 block truncate">{p.providerName ?? 'Sin proveedor'}</span>
+                                                <span className="text-xs text-gray-700">{new Date(p.created_at).toLocaleDateString()}</span>
                                             </div>
-                                            <span className="font-bold tabular-nums shrink-0">${p.total_amount.toLocaleString()}</span>
+                                            <span className="font-bold tabular-nums shrink-0 text-gray-900">${p.total_amount.toLocaleString()}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -719,19 +685,19 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                     <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total a cobrar (clientes)</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total a cobrar (clientes)</p>
                                 <p className="text-2xl font-black text-emerald-600 mt-1">${stats.pendingCollect.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Total a pagar (proveedores)</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Total a pagar (proveedores)</p>
                                 <p className="text-2xl font-black text-red-600 mt-1">${totalToPay.toLocaleString()}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Clientes con deuda</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Clientes con deuda</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">{debtorsFull.length}</p>
                             </div>
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Proveedores con deuda</p>
+                                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Proveedores con deuda</p>
                                 <p className="text-2xl font-black text-gray-900 mt-1">{creditors.length}</p>
                             </div>
                         </div>
@@ -739,9 +705,9 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-black text-gray-800 mb-4">Principales deudores (me deben)</h3>
                                 <div className="space-y-2">
-                                    {debtorsFull.length === 0 ? <p className="text-gray-600 text-sm">Ninguno</p> : debtorsFull.slice(0, 8).map(d => (
-                                        <div key={d.id} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                            <span className="truncate pr-2">{d.name}</span>
+                                    {debtorsFull.length === 0 ? <p className="text-gray-800 text-sm">Ninguno</p> : debtorsFull.slice(0, 8).map(d => (
+                                        <div key={d.id} className="flex justify-between text-sm py-1 border-b border-gray-200">
+                                            <span className="truncate pr-2 text-gray-900">{d.name}</span>
                                             <span className="font-bold text-emerald-600 shrink-0">${d.balance.toLocaleString()}</span>
                                         </div>
                                     ))}
@@ -750,9 +716,9 @@ className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${dateRange ==
                             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-black text-gray-800 mb-4">Principales acreedores (les debo)</h3>
                                 <div className="space-y-2">
-                                    {creditors.length === 0 ? <p className="text-gray-600 text-sm">Ninguno</p> : creditors.slice(0, 8).map(c => (
-                                        <div key={c.id} className="flex justify-between text-sm py-1 border-b border-gray-50">
-                                            <span className="truncate pr-2">{c.name}</span>
+                                    {creditors.length === 0 ? <p className="text-gray-800 text-sm">Ninguno</p> : creditors.slice(0, 8).map(c => (
+                                        <div key={c.id} className="flex justify-between text-sm py-1 border-b border-gray-200">
+                                            <span className="truncate pr-2 text-gray-800">{c.name}</span>
                                             <span className="font-bold text-red-600 shrink-0">${c.balance.toLocaleString()}</span>
                                         </div>
                                     ))}
