@@ -91,7 +91,7 @@ function LayoutContent({
 
   if (authLoading) return <html><body><div className="h-screen flex items-center justify-center text-gray-900">Cargando...</div></body></html>;
 
-  if (user && !profile && pathname !== '/' && pathname !== '/login') {
+  if (user && !profile && pathname !== '/' && pathname !== '/login' && !pathname?.startsWith('/admin')) {
     return (
       <html lang="es">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900`}>
