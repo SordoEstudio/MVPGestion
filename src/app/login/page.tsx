@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Lock, ArrowRight, User, Briefcase } from 'lucide-react';
 
-const DEMO_CONTADOR = { email: 'contador@demo.com', password: 'contador123$' };
-const DEMO_COMERCIANTE = { email: 'user@demo.com', password: 'user123$' };
+const DEMO_CONTADOR = { email: 'contador@demo.com', password: 'demo123$' };
+const DEMO_COMERCIANTE = { email: 'user@demo.com', password: 'demo123$' };
 const isDemoVisible = process.env.NEXT_PUBLIC_ENV !== 'production';
 
 export default function LoginPage() {

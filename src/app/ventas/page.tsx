@@ -341,7 +341,7 @@ export default function SalesPage() {
                         <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
                     </div>
                 ) : (
-                    <div className={`flex-1 min-h-0 overflow-auto p-0.5 ${viewMode === 'CARDS' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2' : 'flex flex-col gap-1'}`}>
+                    <div className={`flex-1 min-h-0 overflow-auto p-0.5 ${viewMode === 'CARDS' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 content-start' : 'flex flex-col gap-1'}`}>
                         {filteredProducts.map((product) => (
                             <ProductCard
                                 key={product.id}
