@@ -13,13 +13,14 @@ create table if not exists public.people (
 alter table public.people enable row level security;
 create policy "Allow public access" on public.people for all using (true) with check (true);
 
--- 3. Migrate existing customers to people
-insert into public.people (name, phone, balance, type)
-select name, phone, balance, 'CLIENT' from public.customers;
-
--- 4. WARNING: We are about to drop 'customers'. 
--- Ensure your app code is updated to use 'people' before running this in production.
-drop table public.customers;
+-- 3. Migrate existing customers to people (condicional: safe en fresh DB)
+do $$ begin
+  if exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'customers') then
+    insert into public.people (name, phone, balance, type)
+    select name, phone, balance, 'CLIENT' from public.customers;
+    drop table public.customers;
+  end if;
+end $$;
 
 -- 5. Add Seed Providers
 insert into public.people (name, type) values 
