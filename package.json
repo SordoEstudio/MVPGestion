@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:seed:local": "psql $DATABASE_URL -f supabase/seed/local_seed.sql"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

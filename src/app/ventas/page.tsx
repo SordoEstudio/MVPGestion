@@ -203,50 +203,20 @@ export default function SalesPage() {
                 return;
             }
 
-            const totalAmount = calculateTotal();
-            const { data: transaction, error: transError } = await supabase
-                .from('transactions')
-                .insert({
-                    type: 'SALE',
-                    total_amount: totalAmount,
-                    status: 'COMPLETED',
-                    entity_id: selectedCustomer?.id || null,
-                    store_id: storeId!
-                })
-                .select()
-                .single();
-            if (transError) throw transError;
-
-            const itemsToInsert = cart.map(item => ({
-                transaction_id: transaction.id,
-                product_id: item.id,
-                product_name: item.name,
-                quantity: item.quantity,
-                unit_price: item.price,
-                total_price: item.price * item.quantity
-            }));
-            const { error: itemsError } = await supabase.from('transaction_items').insert(itemsToInsert);
-            if (itemsError) throw itemsError;
-
-            const paymentsToInsert = payments.map(p => ({
-                transaction_id: transaction.id,
-                amount: p.amount,
-                method: p.method
-            }));
-            const { error: paymentError } = await supabase.from('payments').insert(paymentsToInsert);
-            if (paymentError) throw paymentError;
-
-            const creditPayment = payments.find(p => p.method === 'CREDIT_CUSTOMER');
-            if (creditPayment && selectedCustomer) {
-                const totalCredit = payments
-                    .filter(p => p.method === 'CREDIT_CUSTOMER')
-                    .reduce((sum, p) => sum + p.amount, 0);
-
-                const { data: currentPerson } = await supabase.from('people').select('balance').eq('id', selectedCustomer.id).single();
-                if (currentPerson) {
-                    await supabase.from('people').update({ balance: currentPerson.balance + totalCredit }).eq('id', selectedCustomer.id);
-                }
-            }
+            const { error } = await supabase.rpc('finalize_sale', {
+                p_store_id: storeId!,
+                p_total_amount: calculateTotal(),
+                p_entity_id: selectedCustomer?.id ?? null,
+                p_items: cart.map(item => ({
+                    product_id: item.id,
+                    product_name: item.name,
+                    quantity: item.quantity,
+                    unit_price: item.price,
+                    total_price: item.price * item.quantity,
+                })),
+                p_payments: payments.map(p => ({ method: p.method, amount: p.amount })),
+            });
+            if (error) throw error;
 
             clearCart();
             setShowPaymentModal(false);
@@ -371,7 +341,7 @@ export default function SalesPage() {
                         <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
                     </div>
                 ) : (
-                    <div className={`flex-1 min-h-0 overflow-auto p-0.5 ${viewMode === 'CARDS' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2' : 'flex flex-col gap-1'}`}>
+                    <div className={`flex-1 min-h-0 overflow-auto p-0.5 ${viewMode === 'CARDS' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 content-start' : 'flex flex-col gap-1'}`}>
                         {filteredProducts.map((product) => (
                             <ProductCard
                                 key={product.id}
