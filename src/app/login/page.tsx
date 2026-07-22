@@ -7,6 +7,7 @@ import { Mail, Lock, ArrowRight, User, Briefcase } from 'lucide-react';
 
 const DEMO_CONTADOR = { email: 'contador@demo.com', password: 'contador123$' };
 const DEMO_COMERCIANTE = { email: 'user@demo.com', password: 'user123$' };
+const isDemoVisible = process.env.NEXT_PUBLIC_ENV !== 'production';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -89,30 +90,32 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-          <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Acceso demo</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => { setEmail(DEMO_CONTADOR.email); setPassword(DEMO_CONTADOR.password); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              <Briefcase className="w-4 h-4 text-indigo-600" />
-              Rellenar contador
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEmail(DEMO_COMERCIANTE.email); setPassword(DEMO_COMERCIANTE.password); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              <User className="w-4 h-4 text-blue-600" />
-              Rellenar comerciante
-            </button>
+        {isDemoVisible && (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">Acceso demo</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => { setEmail(DEMO_CONTADOR.email); setPassword(DEMO_CONTADOR.password); }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                <Briefcase className="w-4 h-4 text-indigo-600" />
+                Rellenar contador
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail(DEMO_COMERCIANTE.email); setPassword(DEMO_COMERCIANTE.password); }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                <User className="w-4 h-4 text-blue-600" />
+                Rellenar comerciante
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Contador: {DEMO_CONTADOR.email} / Comerciante: {DEMO_COMERCIANTE.email}
+            </p>
           </div>
-          <p className="text-xs text-gray-500">
-            Contador: {DEMO_CONTADOR.email} / Comerciante: {DEMO_COMERCIANTE.email}
-          </p>
-        </div>
+        )}
 
         <p className="text-center text-xs text-gray-500">
           Sistema de Gestión SIMPLE

@@ -156,87 +156,25 @@ export default function ExpensesPage() {
                 return;
             }
 
-            const totalAmount = calculateTotal();
-
-            // 1. Transaction
-            const { data: transaction, error: transError } = await supabase
-                .from('transactions')
-                .insert({
-                    type: 'EXPENSE',
-                    total_amount: totalAmount,
-                    status: 'COMPLETED',
-                    entity_id: selectedProviderId || null,
-                    store_id: storeId!
-                })
-                .select()
-                .single();
-            if (transError) throw transError;
-
-            // 2. Items
-            const itemsToInsert = cart.map(item => ({
-                transaction_id: transaction.id,
-                product_id: item.product_id || null,
-                product_name: item.description,
-                quantity: item.quantity,
-                unit_price: item.amount,
-                total_price: item.amount * item.quantity
-            }));
-            const { error: itemsError } = await supabase.from('transaction_items').insert(itemsToInsert);
-            if (itemsError) throw itemsError;
-
-            // 3. Payments
-            const paymentsToInsert = payments.map(p => ({
-                transaction_id: transaction.id,
-                amount: p.amount,
-                method: p.method
-            }));
-            const { error: paymentError } = await supabase.from('payments').insert(paymentsToInsert);
-            if (paymentError) throw paymentError;
-
-            // 4. Update Stock (If product_id exists)
-            for (const item of cart) {
-                if (item.product_id) {
-                    const { data: prod } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
-                    if (prod) {
-                        await supabase.from('products').update({ stock: prod.stock + item.quantity }).eq('id', item.product_id);
-                    }
-                }
-            }
-
-            // 5. Update Provider Balance (If Fiado)
-            const creditTotal = payments.filter(p => p.method === 'CREDIT_PROVIDER').reduce((sum, p) => sum + p.amount, 0);
-            if (creditTotal > 0 && selectedProviderId) {
-                const { data: prov } = await supabase.from('people').select('balance').eq('id', selectedProviderId).single();
-                if (prov) {
-                    // Start debt for provider: Should be positive or negative?
-                    // In People table: Balance > 0 usually means "They owe us".
-                    // But for providers, if we owe them...
-                    // Let's standardise: Balance is "My favor".
-                    // If Client has Balance 100 -> They owe me 100.
-                    // If Provider has Balance 100 -> I owe them 100? Or they owe me?
-                    // Let's keep it simple: Balance = Deuda. 
-                    // Client Balance > 0 = Client Debt.
-                    // Provider Balance > 0 = My Debt to Provider? Or Provider Debt to me?
-                    // Context: "Saldar Deudas".
-                    // Let's say: Balance always "Deuda de la Persona hacia el Negocio".
-                    // So if I buy Fiado from Provider -> I owe them. So his balance should be NEGATIVE?
-                    // Or let's say "Balance" on Provider = "Cuánto le debo". (Positive = I owe him).
-                    // If I buy Fiado -> I owe him more -> Balance INCREASES.
-                    // Let's check Sales logic. `update({ balance: currentPerson.balance + totalCredit })`.
-                    // Sales: Customer buys Fiado -> Increases Balance. So Balance = Amount they owe me.
-                    // Expenses: I buy Fiado -> I owe them. So Balance = Amount I owe them.
-                    // This creates a semantic difference but keeps numbers positive.
-                    // Let's assume Balance is always "How much is pending".
-
-                    await supabase.from('people').update({ balance: prov.balance + creditTotal }).eq('id', selectedProviderId);
-                }
-            }
+            const { error } = await supabase.rpc('finalize_expense', {
+                p_store_id: storeId!,
+                p_total_amount: calculateTotal(),
+                p_entity_id: selectedProviderId || null,
+                p_items: cart.map(item => ({
+                    product_id: item.product_id ?? null,
+                    product_name: item.description,
+                    quantity: item.quantity,
+                    unit_price: item.amount,
+                    total_price: item.amount * item.quantity,
+                })),
+                p_payments: payments.map(p => ({ method: p.method, amount: p.amount })),
+            });
+            if (error) throw error;
 
             setCart([]);
             setShowPaymentModal(false);
             setManualDesc(''); setManualAmount(''); setSelectedProviderId('');
             toast.success('Gasto registrado exitosamente.');
-
         } catch (error: any) {
             console.error('Error:', error);
             toast.error('Error: ' + error.message);
