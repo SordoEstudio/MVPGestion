@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '@/lib/supabase/admin';
 import NewStoreForm from './NewStoreForm';
 import StoreCard from './StoreCard';
+import LogoutButton from './LogoutButton';
 
 const ADMIN_USER_ID = 'd9551cbb-f954-4287-b4b2-342755626fd2';
 
@@ -41,9 +42,12 @@ export default async function AdminPage() {
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Panel Admin</h1>
-          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-            {storesWithUsers.length} comercios
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+              {storesWithUsers.length} comercios
+            </span>
+            <LogoutButton />
+          </div>
         </div>
 
         <NewStoreForm />
