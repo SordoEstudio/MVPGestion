@@ -1,12 +1,16 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const ContentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  isDev
+    ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://127.0.0.1:* ws://127.0.0.1:*"
+    : "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
   "frame-ancestors 'none'",
 ].join('; ');
 
